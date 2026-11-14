@@ -398,6 +398,30 @@ $('#neighbor-cancel').addEventListener('click', () => {
   $('#neighbor-form').elements.nombre.focus();
 });
 
+$('#export-neighbors').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  message.hidden = true;
+  try {
+    if (!yearInput.reportValidity()) return;
+    const version = loadVersion;
+    const data = await rpc('cuotas_datos', { p_anio: Number(yearInput.value) });
+    if (!session || version !== loadVersion) throw new Error('La sesión o los datos cambiaron. Vuelve a intentar la descarga.');
+    const buffer = await ExportarVecinos.crearArchivo(data.vecinos);
+    if (!session || version !== loadVersion) throw new Error('La sesión o los datos cambiaron. Vuelve a intentar la descarga.');
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'vecinos.xlsx';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    showMessage(`No se pudo descargar el Excel: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $('#fee-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = event.currentTarget;

@@ -74,6 +74,9 @@ a todos.
 
 ## Funcionamiento
 
+- En Vecinos, tesorería puede descargar un archivo Excel con ID, nombre, RUT y
+  mes de inicio de cobro. El archivo contiene datos personales; guárdalo y
+  compártelo con cuidado.
 - Tesorería puede corregir nombre, RUT y mes de inicio en el listado de vecinos.
   Cambiar el mes puede alterar la deuda y no reasigna pagos existentes. No se
   permite fijarlo después de un mes con pagos vigentes aplicados.
@@ -92,3 +95,6 @@ a todos.
   incluidos los anulados, con independencia del año seleccionado en el tablero.
 - El saldo mostrado corresponde al año completo, incluidos meses futuros.
   La sesión de tesorería se mantiene solo en memoria de la página.
+
+Para modificar el exportador Excel, ejecuta `npm ci` y después
+`npm run build:excel`; publica el archivo generado `exportar-vecinos.js`.

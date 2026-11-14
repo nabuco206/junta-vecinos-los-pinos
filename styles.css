@@ -17,6 +17,8 @@ button:hover { background: #174bbd; } button:disabled { opacity: .6; cursor: wai
 button.secondary { background: white; color: #173c70; }
 button.outline { background: #e8effa; color: #173c70; }
 button.outline:hover { background: #d7e5fa; }
+button.excel { background: #217346; display: inline-flex; align-items: center; gap: 8px; }
+button.excel:hover { background: #185b37; }
 button.danger { background: #a42727; min-height: 34px; }
 a { color: #174bbd; }
 nav { display: flex; align-items: center; gap: 18px; }
