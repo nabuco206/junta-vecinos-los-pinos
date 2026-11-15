@@ -115,6 +115,7 @@ a todos.
   La vista consulta el historial de cada vecino al abrirse y permite cambiar de
   año sin volver a consultarlo; en pantallas pequeñas se desplaza horizontalmente.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
+  Cuando no hay fecha registrada, esta se muestra en blanco.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
   Los meses pagados anteriores al inicio de cobro se muestran en el historial
   sin generar cuotas ni deuda antes de ese inicio.

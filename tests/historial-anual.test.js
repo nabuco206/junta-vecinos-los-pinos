@@ -53,14 +53,14 @@ test('agrupa meses consecutivos y suma solo aplicaciones vigentes del año', () 
   ]);
   app.render();
   assert.deepEqual(app.rows(), [
-    ['Fecha desconocida', '10', 'Enero–Diciembre: $1.000 por mes', '$12.000', 'Registrado'],
+    ['', '10', 'Enero–Diciembre: $1.000 por mes', '$12.000', 'Registrado'],
     ['02/02/2024', '10', 'Enero: $500; Marzo: $500; Abril–Mayo: $1.000 por mes', '$3.000', 'Registrado'],
     ['01/03/2024', '11', 'Enero: $1.000', '$1.000', 'Anulado: Error']
   ]);
   assert.equal(app.status(), 'Pagos de Vecino aplicados a 2024: $15.000 vigentes.');
   app.document.querySelector('#history-year-select').value = '2025';
   app.render();
-  assert.deepEqual(app.rows(), [['Fecha desconocida', '10', 'Enero: $1.000', '$1.000', 'Registrado']]);
+  assert.deepEqual(app.rows(), [['', '10', 'Enero: $1.000', '$1.000', 'Registrado']]);
   assert.equal(app.status(), 'Pagos de Vecino aplicados a 2025: $1.000 vigentes.');
 });
 
@@ -71,7 +71,7 @@ test('muestra un año sin pagos sin confundirlo con deuda', () => {
   assert.equal(app.status(), 'No hay pagos aplicados a 2024 para Vecino. Un mes sin pagos no implica necesariamente deuda.');
 });
 
-test('la vista general muestra cada comprobante vigente en sus meses y distingue fechas desconocidas', () => {
+test('la vista general muestra cada comprobante vigente y deja en blanco las fechas desconocidas', () => {
   const app = setup([]);
   app.context.overview = {
     snapshot: [{ id: 1, nombre: 'Vecino 1' }, { id: 2, nombre: 'Vecino 2', no_paga_cuota: true }],
@@ -92,12 +92,12 @@ test('la vista general muestra cada comprobante vigente en sus meses y distingue
   assert.equal(rows[0].children.length, 13);
   assert.equal(rows[0].children[0].textContent, 'Vecino 1');
   assert.deepEqual(rows[0].children[1].children.map(entry => entry.children.map(item => item.textContent)), [
-    ['433', '03/02/2025'], ['123', 'Fecha desconocida']
+    ['433', '03/02/2025'], ['123', '']
   ]);
   assert.deepEqual(rows[0].children[2].children[0].children.map(item => item.textContent), ['433', '03/02/2025']);
   assert.equal(rows[0].children[3].children.length, 0);
   assert.equal(rows[1].children[0].children[0].textContent, 'No paga cuota');
-  assert.deepEqual(rows[1].children[12].children[0].children.map(item => item.textContent), ['Sin comprobante', 'Fecha desconocida']);
+  assert.deepEqual(rows[1].children[12].children[0].children.map(item => item.textContent), ['Sin comprobante', '']);
   app.document.querySelector('#history-overview-year').value = '2024';
   runInContext('renderHistoryOverview()', app.context);
   const updated = app.document.querySelector('#history-overview-rows').children;
@@ -148,7 +148,7 @@ test('busca comprobantes entre todos los vecinos y años, incluidos los anulados
   const rows = app.document.querySelector('#payments').children;
   assert.equal(rows.length, 2);
   assert.equal(rows[0].children[0].textContent, 'Ana');
-  assert.equal(rows[0].children[1].textContent, 'Fecha desconocida');
+  assert.equal(rows[0].children[1].textContent, '');
   assert.equal(rows[0].children[2].textContent, 'AB-123');
   assert.equal(rows[1].children[0].textContent, 'Pedro');
   assert.equal(rows[1].children[5].textContent, 'Anulado: Error');
@@ -175,4 +175,31 @@ test('descarta respuestas antiguas y muestra errores al buscar comprobantes', as
   await runInContext('loadHistoryReceipt()', app.context);
   assert.match(app.document.querySelector('#history-status').textContent, /Conexión perdida/);
   assert.equal(app.document.querySelector('#payments').children.length, 0);
+});
+
+test('el portal del vecino deja en blanco las fechas ausentes y conserva las registradas', async () => {
+  const elements = new Map();
+  const document = {
+    querySelector(selector) {
+      if (!elements.has(selector)) elements.set(selector, new Element());
+      return elements.get(selector);
+    },
+    createElement() { return new Element(); }
+  };
+  const context = createContext({ document, Option: Element });
+  runInContext(readFileSync(new URL('../vecino.js', import.meta.url), 'utf8'), context);
+  context.testData = {
+    anio_inicio: 2025, anio_actual: 2025, vecino: { nombre: 'Vecino' },
+    configuracion_completa: true, deuda_hasta_hoy: 0, cuotas: [],
+    pagos: [
+      { fecha: null, comprobante: '1', monto: 1000, aplicaciones: [] },
+      { fecha: '2025-03-04', comprobante: '2', monto: 1000, aplicaciones: [] }
+    ]
+  };
+  runInContext('session = {}; request = async () => testData', context);
+  await runInContext('loadYear(2025, session)', context);
+  const rows = document.querySelector('#payments').children;
+  assert.equal(rows[0].children[0].textContent, '');
+  assert.equal(rows[1].children[0].textContent, '04/03/2025');
+  assert.equal(context.testData.pagos[0].fecha, null);
 });

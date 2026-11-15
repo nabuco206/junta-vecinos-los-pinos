@@ -106,7 +106,7 @@ async function loadYear(year, expectedSession) {
   for (const payment of data.pagos) {
     const row = document.createElement('tr');
     const values = [
-      payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida',
+      payment.fecha ? payment.fecha.split('-').reverse().join('/') : '',
       payment.comprobante || '—',
       money.format(payment.monto),
       payment.aplicaciones.map(item => `${item.mes.slice(0, 7)}: ${money.format(item.monto)}`).join(', '),

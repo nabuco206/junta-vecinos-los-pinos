@@ -109,7 +109,7 @@ function renderHistoryOverview() {
         const receipt = document.createElement('span');
         receipt.textContent = payment.comprobante || 'Sin comprobante';
         const date = document.createElement('small');
-        date.textContent = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+        date.textContent = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
         entry.append(receipt, date);
         month.append(entry);
       }
@@ -318,7 +318,7 @@ function renderHistoryYear() {
       return `${name}: ${money.format(range.amount)}${range.start === range.end ? '' : ' por mes'}`;
     }).join('; ');
     const row = document.createElement('tr');
-    const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+    const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
     cell(row, date).dataset.label = 'Fecha';
     cell(row, payment.comprobante || '—').dataset.label = 'Comprobante';
     cell(row, months).dataset.label = 'Meses y monto por mes';
@@ -370,7 +370,7 @@ function appendHistoryPayment(payment, neighbor) {
     neighborCell.dataset.label = 'Vecino';
     neighborCell.className = 'history-neighbor-cell';
   }
-  const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+  const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
   cell(row, date).dataset.label = 'Fecha';
   cell(row, payment.comprobante || '—').dataset.label = 'N.º comprobante';
   const months = cell(row, '');
