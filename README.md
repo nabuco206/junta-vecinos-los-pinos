@@ -109,11 +109,12 @@ a todos.
 - **Historial de pagos 2** muestra una fila por pago con los meses y montos
   aplicados al año seleccionado, incluidos los pagos anulados identificados
   como tales. Los totales no incluyen pagos anulados.
-- **Historial de pagos 3** presenta a todos los vecinos y los doce meses de un
+- **Pagos por Año** presenta a todos los vecinos y los doce meses de un
   año, con comprobante y fecha de cada pago vigente aplicado. Los pagos anulados
   se consultan en los otros historiales. Una celda vacía no implica deuda.
   La vista consulta el historial de cada vecino al abrirse y permite cambiar de
-  año sin volver a consultarlo; en pantallas pequeñas se desplaza horizontalmente.
+  año de 2014 a 2027 sin volver a consultarlo; en pantallas pequeñas se desplaza
+  horizontalmente. La tabla del año seleccionado puede descargarse en Excel.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
   Cuando no hay fecha registrada, esta se muestra en blanco.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.

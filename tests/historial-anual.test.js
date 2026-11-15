@@ -4,11 +4,11 @@ import { readFileSync } from 'node:fs';
 import { createContext, runInContext } from 'node:vm';
 
 class Element {
-  constructor() {
+  constructor(text = '', value = '') {
     this.children = [];
     this.dataset = {};
-    this.value = '';
-    this.textContent = '';
+    this.value = value;
+    this.textContent = text;
     this.elements = { anio: {}, fecha: {} };
     this.classList = { toggle() {} };
   }
@@ -17,6 +17,14 @@ class Element {
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
 }
+
+test('el selector de Pagos por Año contiene exclusivamente los años 2014 a 2027', () => {
+  const app = setup([]);
+  const options = app.document.querySelector('#history-overview-year').children;
+  assert.deepEqual(options.map(option => option.value), Array.from({ length: 14 }, (_, i) => String(2027 - i)));
+  const selected = Number(app.document.querySelector('#history-overview-year').value);
+  assert.ok(selected >= 2014 && selected <= 2027);
+});
 
 function setup(payments, year = '2024') {
   const elements = new Map();
@@ -88,6 +96,9 @@ test('la vista general muestra cada comprobante vigente y deja en blanco las fec
   app.document.querySelector('#history-overview-year').value = '2025';
   runInContext('renderHistoryOverview()', app.context);
   const rows = app.document.querySelector('#history-overview-rows').children;
+  const exportRows = runInContext("overviewRows('2025')", app.context);
+  assert.deepEqual(exportRows[0].months[0].map(payment => payment.comprobante).join(','), '433,123');
+  assert.equal(exportRows[0].months[2].length, 0);
   assert.equal(rows.length, 2);
   assert.equal(rows[0].children.length, 13);
   assert.equal(rows[0].children[0].textContent, 'Vecino 1');

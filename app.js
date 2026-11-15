@@ -20,6 +20,13 @@ let historyYearPayments = null;
 let historyOverviewVersion = 0;
 let historyOverviewPayments = null;
 let historyOverviewLoading = false;
+let historyOverviewExporting = false;
+const overviewFirstYear = 2014;
+const overviewLastYear = 2027;
+
+function defaultOverviewYear() {
+  return String(Math.min(overviewLastYear, Math.max(overviewFirstYear, new Date().getFullYear())));
+}
 
 function showMessage(text, error = false) {
   message.textContent = text;
@@ -56,7 +63,7 @@ function setAuthenticated(authenticated) {
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     $('#history-year-months').replaceChildren();
     clearHistoryOverview();
-    $('#history-overview-year').value = String(new Date().getFullYear());
+    $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
     $('#year-info').textContent = '';
     $('#summary-neighbors').textContent = '—';
@@ -70,18 +77,15 @@ function clearHistoryOverview() {
   historyOverviewVersion++;
   historyOverviewPayments = null;
   historyOverviewLoading = false;
+  updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
   $('#history-overview-status').textContent = '';
   $('#history-overview-retry').hidden = true;
 }
 
-function renderHistoryOverview() {
-  const rows = $('#history-overview-rows');
-  rows.replaceChildren();
-  if (!historyOverviewPayments) return;
-  const year = $('#history-overview-year').value;
+function overviewRows(year) {
   const { snapshot, paymentsByNeighbor } = historyOverviewPayments;
-  for (const neighbor of snapshot) {
+  return snapshot.map(neighbor => {
     const months = Array.from({ length: 12 }, () => []);
     for (const payment of paymentsByNeighbor.get(String(neighbor.id))) {
       if (payment.anulado_en) continue;
@@ -91,6 +95,20 @@ function renderHistoryOverview() {
         }
       }
     }
+    return { neighbor, months };
+  });
+}
+
+function updateOverviewExportButton() {
+  $('#export-history-overview').disabled = !historyOverviewPayments || historyOverviewExporting;
+}
+
+function renderHistoryOverview() {
+  const rows = $('#history-overview-rows');
+  rows.replaceChildren();
+  if (!historyOverviewPayments) return;
+  const year = $('#history-overview-year').value;
+  for (const { neighbor, months } of overviewRows(year)) {
     const row = document.createElement('tr');
     const name = document.createElement('th');
     name.scope = 'row';
@@ -116,9 +134,11 @@ function renderHistoryOverview() {
     }
     rows.append(row);
   }
-  $('#history-overview-status').textContent = snapshot.length
-    ? `Pagos aplicados a ${year} para ${snapshot.length} vecinos.`
+  const count = historyOverviewPayments.snapshot.length;
+  $('#history-overview-status').textContent = count
+    ? `Pagos aplicados a ${year} para ${count} vecinos.`
     : 'No hay vecinos registrados.';
+  updateOverviewExportButton();
 }
 
 async function loadHistoryOverview() {
@@ -127,6 +147,7 @@ async function loadHistoryOverview() {
   if (!activeSession) return;
   historyOverviewPayments = null;
   historyOverviewLoading = true;
+  updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
   $('#history-overview-status').textContent = 'Cargando historial general…';
   $('#history-overview-retry').hidden = true;
@@ -643,6 +664,34 @@ $('#history-year-neighbor').addEventListener('change', () => {
 $('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
+$('#export-history-overview').addEventListener('click', async () => {
+  if (!session || !historyOverviewPayments || historyOverviewExporting) return;
+  const activeSession = session;
+  const data = historyOverviewPayments;
+  const version = historyOverviewVersion;
+  const year = $('#history-overview-year').value;
+  historyOverviewExporting = true;
+  updateOverviewExportButton();
+  message.hidden = true;
+  try {
+    const buffer = await ExportarVecinos.crearArchivoPagosPorAnio(year, overviewRows(year));
+    if (session !== activeSession || historyOverviewVersion !== version || historyOverviewPayments !== data
+      || $('#history-overview-year').value !== year) {
+      throw new Error('La sesión o los datos cambiaron. Vuelve a intentar la descarga.');
+    }
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pagos-por-ano-${year}.xlsx`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    if (session === activeSession) showMessage(`No se pudo descargar el Excel: ${error.message}`, true);
+  } finally {
+    historyOverviewExporting = false;
+    updateOverviewExportButton();
+  }
+});
 
 $('#logout').addEventListener('click', async () => {
   const previous = session;
@@ -792,10 +841,12 @@ yearTableInput.addEventListener('change', () => changeYear(yearTableInput.value)
 const today = new Date();
 for (let year = 2100; year >= 2000; year--) {
   $('#history-year-select').add(new Option(String(year), String(year)));
+}
+for (let year = overviewLastYear; year >= overviewFirstYear; year--) {
   $('#history-overview-year').add(new Option(String(year), String(year)));
 }
 $('#history-year-select').value = String(today.getFullYear());
-$('#history-overview-year').value = String(today.getFullYear());
+$('#history-overview-year').value = defaultOverviewYear();
 yearInput.value = today.getFullYear();
 yearTableInput.value = today.getFullYear();
 $('#fee-form').elements.anio.value = today.getFullYear();

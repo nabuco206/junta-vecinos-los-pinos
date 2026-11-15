@@ -17,3 +17,26 @@ export async function crearArchivo(vecinos) {
   }
   return libro.xlsx.writeBuffer();
 }
+
+export async function crearArchivoPagosPorAnio(anio, filas) {
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet('Pagos por Año', { views: [{ state: 'frozen', xSplit: 1, ySplit: 2 }] });
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  hoja.columns = [{ width: 32 }, ...meses.map(() => ({ width: 18 }))];
+  hoja.addRow([`Pagos por Año: ${anio}`]);
+  hoja.addRow(['Vecino', ...meses]);
+  hoja.getRow(1).font = { bold: true, size: 14 };
+  hoja.getRow(2).font = { bold: true };
+  for (const { neighbor, months } of filas) {
+    const nombre = neighbor.no_paga_cuota ? `${neighbor.nombre}\nNo paga cuota` : neighbor.nombre;
+    hoja.addRow([nombre, ...months.map(pagos => pagos.map(pago => {
+      const comprobante = pago.comprobante || 'Sin comprobante';
+      const fecha = pago.fecha ? pago.fecha.split('-').reverse().join('/') : '';
+      return fecha ? `${comprobante}\n${fecha}` : comprobante;
+    }).join('\n\n'))]);
+  }
+  hoja.eachRow(row => {
+    row.eachCell(cell => { cell.alignment = { vertical: 'top', wrapText: true }; });
+  });
+  return libro.xlsx.writeBuffer();
+}
