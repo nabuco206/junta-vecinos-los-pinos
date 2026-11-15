@@ -102,6 +102,7 @@ a todos.
 - En tesorería, **Registrar pago** e **Historial de pagos** son opciones
   separadas del menú. El historial muestra todos los pagos del vecino seleccionado,
   incluidos los anulados, con independencia del año seleccionado en el tablero.
+  Cada comprobante muestra por separado los meses y el monto aplicado a cada uno.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
   Los meses pagados anteriores al inicio de cobro se muestran en el historial

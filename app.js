@@ -193,9 +193,24 @@ async function loadHistory() {
       const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
       cell(row, date);
       cell(row, payment.comprobante || '—');
-      cell(row, neighbor.nombre);
+      const months = cell(row, '');
+      const list = document.createElement('div');
+      list.className = 'history-months';
+      list.tabIndex = 0;
+      list.setAttribute('aria-label', 'Meses y montos aplicados');
+      for (const item of payment.aplicaciones) {
+        const month = document.createElement('span');
+        month.className = 'history-month';
+        const name = document.createElement('span');
+        name.textContent = `${monthNames[Number(item.mes.slice(5, 7)) - 1].toUpperCase()}-${item.mes.slice(0, 4)}`;
+        const amount = document.createElement('small');
+        amount.textContent = money.format(item.monto);
+        month.append(name, amount);
+        list.append(month);
+      }
+      if (!payment.aplicaciones.length) list.textContent = 'Sin cuotas aplicadas';
+      months.append(list);
       cell(row, money.format(payment.monto));
-      cell(row, payment.aplicaciones.map(item => `${item.mes.slice(5, 7)}/${item.mes.slice(0, 4)}: ${money.format(item.monto)}`).join(', '));
       cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado');
       const action = cell(row, '');
       if (!payment.anulado_en) {
