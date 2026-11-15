@@ -16,6 +16,9 @@ let neighbors = [];
 let historyVersion = 0;
 let historyYearVersion = 0;
 let historyYearPayments = null;
+let historyOverviewVersion = 0;
+let historyOverviewPayments = null;
+let historyOverviewLoading = false;
 
 function showMessage(text, error = false) {
   message.textContent = text;
@@ -48,12 +51,105 @@ function setAuthenticated(authenticated) {
     $('#history-year-select').value = String(new Date().getFullYear());
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     $('#history-year-months').replaceChildren();
+    clearHistoryOverview();
+    $('#history-overview-year').value = String(new Date().getFullYear());
     $('#payment-form').elements.vecino.replaceChildren();
     $('#year-info').textContent = '';
     $('#summary-neighbors').textContent = '—';
     $('#summary-paid').textContent = '—';
     $('#summary-debt').textContent = '—';
     $('#summary-info').textContent = '';
+  }
+}
+
+function clearHistoryOverview() {
+  historyOverviewVersion++;
+  historyOverviewPayments = null;
+  historyOverviewLoading = false;
+  $('#history-overview-rows').replaceChildren();
+  $('#history-overview-status').textContent = '';
+  $('#history-overview-retry').hidden = true;
+}
+
+function renderHistoryOverview() {
+  const rows = $('#history-overview-rows');
+  rows.replaceChildren();
+  if (!historyOverviewPayments) return;
+  const year = $('#history-overview-year').value;
+  const { snapshot, paymentsByNeighbor } = historyOverviewPayments;
+  for (const neighbor of snapshot) {
+    const months = Array.from({ length: 12 }, () => []);
+    for (const payment of paymentsByNeighbor.get(String(neighbor.id))) {
+      if (payment.anulado_en) continue;
+      for (const application of payment.aplicaciones) {
+        if (application.mes.slice(0, 4) === year) {
+          months[Number(application.mes.slice(5, 7)) - 1].push(payment);
+        }
+      }
+    }
+    const row = document.createElement('tr');
+    const name = document.createElement('th');
+    name.scope = 'row';
+    name.textContent = neighbor.nombre;
+    if (neighbor.no_paga_cuota) {
+      const exempt = document.createElement('small');
+      exempt.textContent = 'No paga cuota';
+      name.append(exempt);
+    }
+    row.append(name);
+    for (const payments of months) {
+      const month = cell(row, '');
+      for (const payment of payments) {
+        const entry = document.createElement('div');
+        entry.className = 'history-overview-entry';
+        const receipt = document.createElement('span');
+        receipt.textContent = payment.comprobante || 'Sin comprobante';
+        const date = document.createElement('small');
+        date.textContent = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+        entry.append(receipt, date);
+        month.append(entry);
+      }
+    }
+    rows.append(row);
+  }
+  $('#history-overview-status').textContent = snapshot.length
+    ? `Pagos aplicados a ${year} para ${snapshot.length} vecinos.`
+    : 'No hay vecinos registrados.';
+}
+
+async function loadHistoryOverview() {
+  const version = ++historyOverviewVersion;
+  const activeSession = session;
+  if (!activeSession) return;
+  historyOverviewPayments = null;
+  historyOverviewLoading = true;
+  $('#history-overview-rows').replaceChildren();
+  $('#history-overview-status').textContent = 'Cargando historial general…';
+  $('#history-overview-retry').hidden = true;
+  const snapshot = [...neighbors];
+  const payments = new Map();
+  let next = 0;
+  try {
+    async function worker() {
+      while (next < snapshot.length && version === historyOverviewVersion && session === activeSession) {
+        const neighbor = snapshot[next++];
+        const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(neighbor.id) });
+        payments.set(String(neighbor.id), data);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(6, snapshot.length) }, worker));
+    if (version !== historyOverviewVersion || session !== activeSession) return;
+    historyOverviewLoading = false;
+    historyOverviewPayments = { snapshot, paymentsByNeighbor: payments };
+    renderHistoryOverview();
+  } catch (error) {
+    if (version !== historyOverviewVersion || session !== activeSession) return;
+    historyOverviewVersion++;
+    historyOverviewLoading = false;
+    $('#history-overview-status').textContent = error.code === 'PGRST202'
+      ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
+      : `No se pudo cargar el historial general: ${error.message}`;
+    $('#history-overview-retry').hidden = false;
   }
 }
 
@@ -402,10 +498,13 @@ async function withBusy(form, operation) {
 }
 
 async function updateAfterSave(text) {
+  clearHistoryOverview();
   try {
     await load();
+    clearHistoryOverview();
     if ($('#history-neighbor').value) await loadHistory();
     if ($('#history-year-neighbor').value) await loadHistoryYear();
+    if (!$('#view-history-overview').hidden) await loadHistoryOverview();
     showMessage(text);
   } catch (error) {
     showMessage(`${text} No se pudo actualizar la pantalla: ${error.message}`, true);
@@ -435,7 +534,10 @@ $('#login-form').addEventListener('submit', event => {
 
 $('#treasury-menu').addEventListener('click', event => {
   const button = event.target.closest('[data-view]');
-  if (button) showView(button.dataset.view);
+  if (button) {
+    showView(button.dataset.view);
+    if (button.dataset.view === 'history-overview' && !historyOverviewPayments && !historyOverviewLoading) loadHistoryOverview();
+  }
 });
 
 $('#history-search').addEventListener('input', () => {
@@ -453,6 +555,8 @@ $('#history-year-neighbor').addEventListener('change', () => {
   loadHistoryYear();
 });
 $('#history-year-select').addEventListener('change', renderHistoryYear);
+$('#history-overview-year').addEventListener('change', renderHistoryOverview);
+$('#history-overview-retry').addEventListener('click', loadHistoryOverview);
 
 $('#logout').addEventListener('click', async () => {
   const previous = session;
@@ -602,8 +706,10 @@ yearTableInput.addEventListener('change', () => changeYear(yearTableInput.value)
 const today = new Date();
 for (let year = 2100; year >= 2000; year--) {
   $('#history-year-select').add(new Option(String(year), String(year)));
+  $('#history-overview-year').add(new Option(String(year), String(year)));
 }
 $('#history-year-select').value = String(today.getFullYear());
+$('#history-overview-year').value = String(today.getFullYear());
 yearInput.value = today.getFullYear();
 yearTableInput.value = today.getFullYear();
 $('#fee-form').elements.anio.value = today.getFullYear();

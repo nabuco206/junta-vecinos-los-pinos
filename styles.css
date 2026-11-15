@@ -58,6 +58,16 @@ th, td { padding: 10px; border-bottom: 1px solid #e1e7f0; white-space: nowrap; }
 .history-year-table th, .history-year-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: top; }
 .history-year-table th:nth-child(3) { width: 35%; }
 .history-year-cancelled { color: #a42620; }
+.history-overview-table { table-layout: fixed; min-width: 990px; font-size: .8rem; }
+.history-overview-table th, .history-overview-table td { padding: 8px 4px; white-space: normal; overflow-wrap: anywhere; vertical-align: top; border: 1px solid #e1e7f0; }
+.history-overview-table th:first-child { width: 16%; text-align: left; }
+.history-overview-table thead th:not(:first-child), .history-overview-table td { text-align: center; }
+.history-overview-table tbody th { background: white; }
+.history-overview-table small { display: block; color: #566176; font-size: .72rem; }
+.history-overview-table .history-overview-entry + .history-overview-entry { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e1e7f0; }
+.history-overview-wrap { margin-top: 12px; }
+.history-overview-wrap th:first-child { position: sticky; left: 0; z-index: 1; }
+.history-overview-wrap thead th:first-child { z-index: 2; }
 #message { padding: 12px; border-radius: 6px; background: #e8f5ed; color: #21643b; }
 #message.error { background: #fff0ef; color: #a42620; }
 @media (max-width: 600px) {

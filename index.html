@@ -29,6 +29,7 @@
         <button type="button" class="menu-link" data-view="payments">Registrar pago</button>
         <button type="button" class="menu-link" data-view="history">Historial de pagos</button>
         <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
+        <button type="button" class="menu-link" data-view="history-overview">Historial de pagos 3</button>
         <button type="button" class="menu-link" data-view="dues">Cuotas</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
@@ -127,6 +128,23 @@
             <table class="history-year-table">
               <thead><tr><th>Fecha</th><th>Comprobante</th><th>Meses y monto por mes</th><th>Aplicado en el año</th><th>Estado</th></tr></thead>
               <tbody id="history-year-months"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section id="view-history-overview" class="view" hidden>
+        <section class="card">
+          <div class="heading">
+            <h2>Historial de pagos 3: vista general</h2>
+            <label>Año <select id="history-overview-year"></select></label>
+          </div>
+          <p>Comprobantes y fechas de los pagos vigentes aplicados a cada mes. Una celda vacía no implica necesariamente deuda. Los pagos anulados se consultan en los otros historiales.</p>
+          <p id="history-overview-status" aria-live="polite"></p>
+          <button type="button" id="history-overview-retry" class="outline" hidden>Volver a intentar</button>
+          <div class="table-wrap history-overview-wrap" tabindex="0" role="region" aria-label="Historial general por vecino y mes">
+            <table class="history-overview-table">
+              <thead><tr><th scope="col">Vecino</th><th scope="col" abbr="Enero">Ene</th><th scope="col" abbr="Febrero">Feb</th><th scope="col" abbr="Marzo">Mar</th><th scope="col" abbr="Abril">Abr</th><th scope="col" abbr="Mayo">May</th><th scope="col" abbr="Junio">Jun</th><th scope="col" abbr="Julio">Jul</th><th scope="col" abbr="Agosto">Ago</th><th scope="col" abbr="Septiembre">Sep</th><th scope="col" abbr="Octubre">Oct</th><th scope="col" abbr="Noviembre">Nov</th><th scope="col" abbr="Diciembre">Dic</th></tr></thead>
+              <tbody id="history-overview-rows"></tbody>
             </table>
           </div>
         </section>

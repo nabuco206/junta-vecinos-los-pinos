@@ -13,7 +13,7 @@ class Element {
   }
   addEventListener() {}
   add(child) { this.children.push(child); }
-  append(child) { this.children.push(child); }
+  append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
 }
 
@@ -35,7 +35,7 @@ function setup(payments, year = '2024') {
   const render = () => runInContext('renderHistoryYear()', context);
   const rows = () => document.querySelector('#history-year-months').children.map(row => row.children.map(cell => cell.textContent));
   const status = () => document.querySelector('#history-year-status').textContent;
-  return { document, render, rows, status };
+  return { context, document, render, rows, status };
 }
 
 test('agrupa meses consecutivos y suma solo aplicaciones vigentes del año', () => {
@@ -68,4 +68,67 @@ test('muestra un año sin pagos sin confundirlo con deuda', () => {
   app.render();
   assert.deepEqual(app.rows(), []);
   assert.equal(app.status(), 'No hay pagos aplicados a 2024 para Vecino. Un mes sin pagos no implica necesariamente deuda.');
+});
+
+test('la vista general muestra cada comprobante vigente en sus meses y distingue fechas desconocidas', () => {
+  const app = setup([]);
+  app.context.overview = {
+    snapshot: [{ id: 1, nombre: 'Vecino 1' }, { id: 2, nombre: 'Vecino 2', no_paga_cuota: true }],
+    paymentsByNeighbor: new Map([
+      ['1', [
+        { comprobante: '433', fecha: '2025-02-03', aplicaciones: [{ mes: '2025-01-01' }, { mes: '2025-02-01' }, { mes: '2024-01-01' }] },
+        { comprobante: '123', fecha: null, aplicaciones: [{ mes: '2025-01-01' }] },
+        { comprobante: 'anulado', fecha: '2025-01-01', anulado_en: '2025-03-01', aplicaciones: [{ mes: '2025-01-01' }] }
+      ]],
+      ['2', [{ comprobante: null, fecha: null, aplicaciones: [{ mes: '2025-12-01' }] }]]
+    ])
+  };
+  runInContext('historyOverviewPayments = overview', app.context);
+  app.document.querySelector('#history-overview-year').value = '2025';
+  runInContext('renderHistoryOverview()', app.context);
+  const rows = app.document.querySelector('#history-overview-rows').children;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].children.length, 13);
+  assert.equal(rows[0].children[0].textContent, 'Vecino 1');
+  assert.deepEqual(rows[0].children[1].children.map(entry => entry.children.map(item => item.textContent)), [
+    ['433', '03/02/2025'], ['123', 'Fecha desconocida']
+  ]);
+  assert.deepEqual(rows[0].children[2].children[0].children.map(item => item.textContent), ['433', '03/02/2025']);
+  assert.equal(rows[0].children[3].children.length, 0);
+  assert.equal(rows[1].children[0].children[0].textContent, 'No paga cuota');
+  assert.deepEqual(rows[1].children[12].children[0].children.map(item => item.textContent), ['Sin comprobante', 'Fecha desconocida']);
+  app.document.querySelector('#history-overview-year').value = '2024';
+  runInContext('renderHistoryOverview()', app.context);
+  const updated = app.document.querySelector('#history-overview-rows').children;
+  assert.equal(updated[0].children[1].children[0].children[0].textContent, '433');
+  assert.equal(updated[0].children[2].children.length, 0);
+});
+
+test('la carga general limita consultas, ignora respuestas antiguas y permite reintentar', async () => {
+  const app = setup([]);
+  app.context.neighborList = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, nombre: `Vecino ${i + 1}` }));
+  const pending = [];
+  app.context.mockRpc = (_, args) => new Promise((resolve, reject) => pending.push({ id: args.p_vecino, resolve, reject }));
+  runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
+  const first = runInContext('loadHistoryOverview()', app.context);
+  assert.equal(pending.length, 6);
+  pending[0].resolve([]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(pending.length, 7);
+  runInContext('clearHistoryOverview()', app.context);
+  for (const request of pending) request.resolve([]);
+  await first;
+  assert.equal(app.document.querySelector('#history-overview-rows').children.length, 0);
+  const second = runInContext('loadHistoryOverview()', app.context);
+  pending[7].reject(new Error('Conexión perdida'));
+  await second;
+  assert.match(app.document.querySelector('#history-overview-status').textContent, /Conexión perdida/);
+  assert.equal(app.document.querySelector('#history-overview-retry').hidden, false);
+  const third = runInContext('loadHistoryOverview()', app.context);
+  for (let i = 13; i < 19; i++) pending[i].resolve([]);
+  await new Promise(resolve => setImmediate(resolve));
+  for (const request of pending.slice(19)) request.resolve([]);
+  await third;
+  assert.equal(app.document.querySelector('#history-overview-rows').children.length, 8);
+  assert.equal(app.document.querySelector('#history-overview-retry').hidden, true);
 });
