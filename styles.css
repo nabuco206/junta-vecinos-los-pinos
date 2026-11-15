@@ -39,6 +39,8 @@ nav a { color: white; }
 .history-heading { margin-top: 28px; }
 #view-history #history-neighbor { margin-bottom: 4px; }
 #view-history label + label { margin-top: 12px; }
+.history-receipt-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 16px; }
+.history-receipt-form label { flex: 1 1 260px; }
 input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px solid #93b7ff; outline-offset: 2px; }
 .heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
 .heading label { display: flex; align-items: center; gap: 8px; }.heading input { width: 110px; }
@@ -50,6 +52,8 @@ th, td { padding: 10px; border-bottom: 1px solid #e1e7f0; white-space: nowrap; }
 .history-table td { min-width: 0; padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
 .history-table td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 4px; color: #566176; font-weight: 600; }
 .history-table .history-months-cell { grid-column: 1 / -1; grid-row: 2; }
+.history-table .history-neighbor-cell { grid-column: 1 / -1; }
+.history-table.search-results .history-months-cell { grid-row: 3; }
 .history-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 90px), 1fr)); gap: 6px; }
 .history-month { min-width: 0; display: grid; gap: 2px; padding: 6px 3px; border: 1px solid #e1e7f0; border-radius: 6px; text-align: center; font-size: .75rem; }
 .history-month small { color: #566176; font-size: .8rem; }
@@ -75,6 +79,7 @@ th, td { padding: 10px; border-bottom: 1px solid #e1e7f0; white-space: nowrap; }
   #treasury-menu { margin-right: -4px; }
   .history-table tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .history-table .history-months-cell { grid-row: auto; }
+  .history-table.search-results .history-months-cell { grid-row: auto; }
   .history-year-table, .history-year-table tbody { display: block; }
   .history-year-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .history-year-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 12px 0; border-bottom: 1px solid #e1e7f0; }

@@ -14,6 +14,7 @@ let loadVersion = 0;
 let editingNeighbor = null;
 let neighbors = [];
 let historyVersion = 0;
+let historyReceiptQuery = '';
 let historyYearVersion = 0;
 let historyYearPayments = null;
 let historyOverviewVersion = 0;
@@ -42,6 +43,9 @@ function setAuthenticated(authenticated) {
     neighbors = [];
     historyVersion++;
     $('#history-search').value = '';
+    $('#history-receipt-search').value = '';
+    historyReceiptQuery = '';
+    setHistoryReceiptMode(false);
     $('#history-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
     $('#history-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     historyYearVersion++;
@@ -127,17 +131,8 @@ async function loadHistoryOverview() {
   $('#history-overview-status').textContent = 'Cargando historial general…';
   $('#history-overview-retry').hidden = true;
   const snapshot = [...neighbors];
-  const payments = new Map();
-  let next = 0;
   try {
-    async function worker() {
-      while (next < snapshot.length && version === historyOverviewVersion && session === activeSession) {
-        const neighbor = snapshot[next++];
-        const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(neighbor.id) });
-        payments.set(String(neighbor.id), data);
-      }
-    }
-    await Promise.all(Array.from({ length: Math.min(6, snapshot.length) }, worker));
+    const payments = await fetchNeighborHistories(snapshot, () => version === historyOverviewVersion && session === activeSession);
     if (version !== historyOverviewVersion || session !== activeSession) return;
     historyOverviewLoading = false;
     historyOverviewPayments = { snapshot, paymentsByNeighbor: payments };
@@ -151,6 +146,20 @@ async function loadHistoryOverview() {
       : `No se pudo cargar el historial general: ${error.message}`;
     $('#history-overview-retry').hidden = false;
   }
+}
+
+async function fetchNeighborHistories(snapshot, isCurrent) {
+  const payments = new Map();
+  let next = 0;
+  async function worker() {
+    while (next < snapshot.length && isCurrent()) {
+      const neighbor = snapshot[next++];
+      const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(neighbor.id) });
+      payments.set(String(neighbor.id), data);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(6, snapshot.length) }, worker));
+  return payments;
 }
 
 function showView(name) {
@@ -349,11 +358,96 @@ async function loadHistoryYear() {
   }
 }
 
+function setHistoryReceiptMode(enabled) {
+  $('#history-neighbor-column').hidden = !enabled;
+  document.querySelector('.history-table').classList.toggle('search-results', enabled);
+}
+
+function appendHistoryPayment(payment, neighbor) {
+  const row = document.createElement('tr');
+  if (neighbor) {
+    const neighborCell = cell(row, neighbor.nombre);
+    neighborCell.dataset.label = 'Vecino';
+    neighborCell.className = 'history-neighbor-cell';
+  }
+  const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+  cell(row, date).dataset.label = 'Fecha';
+  cell(row, payment.comprobante || '—').dataset.label = 'N.º comprobante';
+  const months = cell(row, '');
+  months.dataset.label = 'Cuota mes y año';
+  months.className = 'history-months-cell';
+  const list = document.createElement('div');
+  list.className = 'history-months';
+  for (const item of payment.aplicaciones) {
+    const month = document.createElement('span');
+    month.className = 'history-month';
+    const name = document.createElement('span');
+    name.textContent = `${monthNames[Number(item.mes.slice(5, 7)) - 1].toUpperCase()}-${item.mes.slice(0, 4)}`;
+    const amount = document.createElement('small');
+    amount.textContent = money.format(item.monto);
+    month.append(name, amount);
+    list.append(month);
+  }
+  if (!payment.aplicaciones.length) list.textContent = 'Sin cuotas aplicadas';
+  months.append(list);
+  cell(row, money.format(payment.monto)).dataset.label = 'Monto total';
+  cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado').dataset.label = 'Estado';
+  const action = cell(row, '');
+  if (!payment.anulado_en) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'danger';
+    button.textContent = 'Anular';
+    button.addEventListener('click', () => cancelPayment(payment.id, button));
+    action.append(button);
+  }
+  $('#payments').append(row);
+}
+
+async function loadHistoryReceipt() {
+  const query = historyReceiptQuery;
+  const version = ++historyVersion;
+  const activeSession = session;
+  const snapshot = [...neighbors];
+  $('#payments').replaceChildren();
+  setHistoryReceiptMode(true);
+  if (!query || !activeSession) {
+    $('#history-status').textContent = 'Escribe un comprobante para buscar.';
+    return;
+  }
+  $('#history-status').textContent = 'Buscando comprobante en todos los vecinos…';
+  try {
+    const histories = await fetchNeighborHistories(snapshot, () => version === historyVersion && session === activeSession);
+    if (version !== historyVersion || session !== activeSession) return;
+    let matches = 0;
+    const normalizedQuery = query.toUpperCase();
+    for (const neighbor of snapshot) {
+      for (const payment of histories.get(String(neighbor.id))) {
+        if (payment.comprobante && payment.comprobante.toUpperCase().includes(normalizedQuery)) {
+          appendHistoryPayment(payment, neighbor);
+          matches++;
+        }
+      }
+    }
+    $('#history-status').textContent = matches
+      ? `${matches} ${matches === 1 ? 'pago encontrado' : 'pagos encontrados'} para el comprobante «${query}».`
+      : `No se encontraron pagos para el comprobante «${query}».`;
+  } catch (error) {
+    if (version !== historyVersion || session !== activeSession) return;
+    historyVersion++;
+    $('#payments').replaceChildren();
+    $('#history-status').textContent = error.code === 'PGRST202'
+      ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
+      : `No se pudo buscar el comprobante: ${error.message}`;
+  }
+}
+
 async function loadHistory() {
   const selected = $('#history-neighbor').value;
   const version = ++historyVersion;
   const activeSession = session;
   $('#payments').replaceChildren();
+  setHistoryReceiptMode(false);
   if (!selected || !activeSession) {
     $('#history-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     return;
@@ -363,41 +457,7 @@ async function loadHistory() {
     const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(selected) });
     if (version !== historyVersion || session !== activeSession) return;
     const neighbor = neighbors.find(item => String(item.id) === selected);
-    for (const payment of data) {
-      const row = document.createElement('tr');
-      const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
-      cell(row, date).dataset.label = 'Fecha';
-      cell(row, payment.comprobante || '—').dataset.label = 'N.º comprobante';
-      const months = cell(row, '');
-      months.dataset.label = 'Cuota mes y año';
-      months.className = 'history-months-cell';
-      const list = document.createElement('div');
-      list.className = 'history-months';
-      for (const item of payment.aplicaciones) {
-        const month = document.createElement('span');
-        month.className = 'history-month';
-        const name = document.createElement('span');
-        name.textContent = `${monthNames[Number(item.mes.slice(5, 7)) - 1].toUpperCase()}-${item.mes.slice(0, 4)}`;
-        const amount = document.createElement('small');
-        amount.textContent = money.format(item.monto);
-        month.append(name, amount);
-        list.append(month);
-      }
-      if (!payment.aplicaciones.length) list.textContent = 'Sin cuotas aplicadas';
-      months.append(list);
-      cell(row, money.format(payment.monto)).dataset.label = 'Monto total';
-      cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado').dataset.label = 'Estado';
-      const action = cell(row, '');
-      if (!payment.anulado_en) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'danger';
-        button.textContent = 'Anular';
-        button.addEventListener('click', () => cancelPayment(payment.id, button));
-        action.append(button);
-      }
-      $('#payments').append(row);
-    }
+    for (const payment of data) appendHistoryPayment(payment);
     $('#history-status').textContent = data.length ? `Pagos de ${neighbor.nombre}.` : `No hay pagos registrados para ${neighbor.nombre}.`;
   } catch (error) {
     if (version !== historyVersion || session !== activeSession) return;
@@ -498,15 +558,22 @@ async function withBusy(form, operation) {
 }
 
 async function updateAfterSave(text) {
+  historyVersion++;
+  if (historyReceiptQuery) {
+    $('#payments').replaceChildren();
+    $('#history-status').textContent = 'Actualizando resultados…';
+  }
   clearHistoryOverview();
   try {
     await load();
     clearHistoryOverview();
-    if ($('#history-neighbor').value) await loadHistory();
+    if (historyReceiptQuery) await loadHistoryReceipt();
+    else if ($('#history-neighbor').value) await loadHistory();
     if ($('#history-year-neighbor').value) await loadHistoryYear();
     if (!$('#view-history-overview').hidden) await loadHistoryOverview();
     showMessage(text);
   } catch (error) {
+    if (historyReceiptQuery) $('#history-status').textContent = `No se pudo actualizar la búsqueda: ${error.message}`;
     showMessage(`${text} No se pudo actualizar la pantalla: ${error.message}`, true);
   }
 }
@@ -541,11 +608,30 @@ $('#treasury-menu').addEventListener('click', event => {
 });
 
 $('#history-search').addEventListener('input', () => {
+  historyReceiptQuery = '';
+  $('#history-receipt-search').value = '';
   updateHistoryOptions();
   loadHistory();
 });
 $('#history-neighbor').addEventListener('change', () => {
+  historyReceiptQuery = '';
+  $('#history-receipt-search').value = '';
   loadHistory();
+});
+$('#history-receipt-search').addEventListener('input', () => {
+  historyReceiptQuery = '';
+  historyVersion++;
+  $('#history-neighbor').value = '';
+  $('#payments').replaceChildren();
+  setHistoryReceiptMode(true);
+  $('#history-status').textContent = 'Escribe un comprobante y pulsa Buscar comprobante.';
+});
+$('#history-receipt-form').addEventListener('submit', event => {
+  event.preventDefault();
+  historyReceiptQuery = $('#history-receipt-search').value.trim();
+  $('#history-search').value = '';
+  updateHistoryOptions();
+  loadHistoryReceipt();
 });
 $('#history-year-search').addEventListener('input', () => {
   updateHistoryOptions(false, 'history-year');

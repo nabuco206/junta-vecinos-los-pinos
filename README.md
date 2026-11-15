@@ -104,6 +104,8 @@ a todos.
   incluidos los anulados, con independencia del año seleccionado en el tablero.
   Cada comprobante muestra por separado los meses y el monto aplicado a cada uno;
   los meses se distribuyen en filas según el tamaño de pantalla.
+  La búsqueda por comprobante consulta todos los vecinos y años, muestra también
+  los anulados y encuentra coincidencias parciales sin distinguir mayúsculas.
 - **Historial de pagos 2** muestra una fila por pago con los meses y montos
   aplicados al año seleccionado, incluidos los pagos anulados identificados
   como tales. Los totales no incluyen pagos anulados.

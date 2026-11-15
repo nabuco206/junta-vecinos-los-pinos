@@ -10,6 +10,7 @@ class Element {
     this.value = '';
     this.textContent = '';
     this.elements = { anio: {}, fecha: {} };
+    this.classList = { toggle() {} };
   }
   addEventListener() {}
   add(child) { this.children.push(child); }
@@ -131,4 +132,47 @@ test('la carga general limita consultas, ignora respuestas antiguas y permite re
   await third;
   assert.equal(app.document.querySelector('#history-overview-rows').children.length, 8);
   assert.equal(app.document.querySelector('#history-overview-retry').hidden, true);
+});
+
+test('busca comprobantes entre todos los vecinos y años, incluidos los anulados', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Pedro' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1 ? [
+    { id: 1, comprobante: 'AB-123', fecha: null, monto: 1000, aplicaciones: [{ mes: '2021-01-01', monto: 1000 }] },
+    { id: 2, comprobante: null, fecha: null, monto: 1000, aplicaciones: [] }
+  ] : [
+    { id: 3, comprobante: 'ab-123', fecha: '2025-03-04', monto: 500, anulado_en: '2025-04-01', motivo_anulacion: 'Error', aplicaciones: [] }
+  ];
+  runInContext("neighbors = neighborList; session = {}; rpc = mockRpc; historyReceiptQuery = 'Ab-12'", app.context);
+  await runInContext('loadHistoryReceipt()', app.context);
+  const rows = app.document.querySelector('#payments').children;
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].children[0].textContent, 'Ana');
+  assert.equal(rows[0].children[1].textContent, 'Fecha desconocida');
+  assert.equal(rows[0].children[2].textContent, 'AB-123');
+  assert.equal(rows[1].children[0].textContent, 'Pedro');
+  assert.equal(rows[1].children[5].textContent, 'Anulado: Error');
+  assert.equal(rows[1].children[6].children.length, 0);
+  assert.match(app.document.querySelector('#history-status').textContent, /2 pagos encontrados/);
+  runInContext("historyReceiptQuery = 'sin coincidencia'", app.context);
+  await runInContext('loadHistoryReceipt()', app.context);
+  assert.equal(app.document.querySelector('#payments').children.length, 0);
+  assert.match(app.document.querySelector('#history-status').textContent, /No se encontraron pagos/);
+});
+
+test('descarta respuestas antiguas y muestra errores al buscar comprobantes', async () => {
+  const app = setup([]);
+  let resolveFirst;
+  app.context.mockRpc = () => new Promise(resolve => { resolveFirst = resolve; });
+  runInContext("session = {}; rpc = mockRpc; historyReceiptQuery = '123'", app.context);
+  const first = runInContext('loadHistoryReceipt()', app.context);
+  runInContext('historyVersion++', app.context);
+  resolveFirst([{ comprobante: '123', monto: 1000, aplicaciones: [] }]);
+  await first;
+  assert.equal(app.document.querySelector('#payments').children.length, 0);
+  app.context.mockFailure = async () => { throw new Error('Conexión perdida'); };
+  runInContext('rpc = mockFailure', app.context);
+  await runInContext('loadHistoryReceipt()', app.context);
+  assert.match(app.document.querySelector('#history-status').textContent, /Conexión perdida/);
+  assert.equal(app.document.querySelector('#payments').children.length, 0);
 });

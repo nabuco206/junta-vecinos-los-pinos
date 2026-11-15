@@ -107,11 +107,15 @@
       <section id="view-history" class="view" hidden>
         <section class="card">
           <h2>Historial de pagos</h2>
-          <p>Consulta todos los pagos de un vecino, incluidos los anulados.</p>
+          <p>Consulta los pagos de un vecino o busca un comprobante entre todos los vecinos, incluidos los pagos anulados.</p>
           <label>Buscar vecino por nombre<input id="history-search" type="search" autocomplete="off" placeholder="Escribe un nombre"></label>
           <label>Seleccionar vecino<select id="history-neighbor"><option value="">Selecciona un vecino</option></select></label>
+          <form id="history-receipt-form" class="history-receipt-form">
+            <label>Buscar comprobante en todos los vecinos<input id="history-receipt-search" type="search" maxlength="30" autocomplete="off" placeholder="Número de comprobante"></label>
+            <button type="submit">Buscar comprobante</button>
+          </form>
           <p id="history-status" aria-live="polite">Selecciona un vecino para ver sus pagos.</p>
-          <div class="table-wrap"><table class="history-table"><thead><tr><th>Fecha</th><th>N.º comprobante</th><th>Cuota mes y año</th><th>Monto total</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="payments"></tbody></table></div>
+          <div class="table-wrap"><table class="history-table"><thead><tr><th id="history-neighbor-column" hidden>Vecino</th><th>Fecha</th><th>N.º comprobante</th><th>Cuota mes y año</th><th>Monto total</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="payments"></tbody></table></div>
         </section>
       </section>
       <section id="view-history-year" class="view" hidden>
