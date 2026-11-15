@@ -116,14 +116,19 @@
       <section id="view-history-year" class="view" hidden>
         <section class="card">
           <h2>Historial de pagos 2</h2>
-          <p>Consulta los pagos aplicados a cada mes del año. Los pagos anulados no se suman. Un mes sin pagos no implica necesariamente deuda.</p>
+          <p>Consulta los comprobantes y las cuotas a las que se aplicaron en el año. Los pagos anulados no se suman.</p>
           <div class="history-year-filters">
             <label>Buscar vecino por nombre<input id="history-year-search" type="search" autocomplete="off" placeholder="Escribe un nombre"></label>
             <label>Seleccionar vecino<select id="history-year-neighbor"><option value="">Selecciona un vecino</option></select></label>
             <label>Año<select id="history-year-select"></select></label>
           </div>
           <p id="history-year-status" aria-live="polite">Selecciona un vecino para ver sus pagos.</p>
-          <div id="history-year-months" class="history-year-grid"></div>
+          <div class="table-wrap">
+            <table class="history-year-table">
+              <thead><tr><th>Fecha</th><th>Comprobante</th><th>Meses y monto por mes</th><th>Aplicado en el año</th><th>Estado</th></tr></thead>
+              <tbody id="history-year-months"></tbody>
+            </table>
+          </div>
         </section>
       </section>
       <section id="view-dues" class="view" hidden>

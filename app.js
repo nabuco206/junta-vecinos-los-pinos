@@ -190,33 +190,38 @@ function renderHistoryYear() {
   const year = $('#history-year-select').value;
   let total = 0;
   let matches = 0;
-  for (let month = 1; month <= 12; month++) {
-    const key = `${year}-${String(month).padStart(2, '0')}`;
-    const entries = historyYearPayments.flatMap(payment => payment.aplicaciones
-      .filter(item => item.mes.slice(0, 7) === key)
-      .map(item => ({ payment, amount: Number(item.monto) })));
-    const paid = entries.reduce((sum, entry) => sum + (entry.payment.anulado_en ? 0 : entry.amount), 0);
-    total += paid;
-    matches += entries.length;
-    const card = document.createElement('article');
-    card.className = 'history-year-month';
-    const title = document.createElement('h3');
-    title.textContent = monthNames[month - 1];
-    const summary = document.createElement('p');
-    summary.textContent = entries.length ? `Aplicado vigente: ${money.format(paid)}` : 'Sin pagos registrados';
-    card.append(title, summary);
-    if (entries.length) {
-      const list = document.createElement('ul');
-      for (const { payment, amount } of entries) {
-        const item = document.createElement('li');
-        const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
-        item.textContent = `Comprobante: ${payment.comprobante || '—'} · ${money.format(amount)} · ${date}${payment.anulado_en ? ` · Anulado: ${payment.motivo_anulacion}` : ''}`;
-        if (payment.anulado_en) item.className = 'history-year-cancelled';
-        list.append(item);
+  for (const payment of historyYearPayments) {
+    const entries = payment.aplicaciones.filter(item => item.mes.slice(0, 4) === year)
+      .sort((a, b) => a.mes.localeCompare(b.mes));
+    if (!entries.length) continue;
+    const applied = entries.reduce((sum, item) => sum + Number(item.monto), 0);
+    if (!payment.anulado_en) total += applied;
+    matches++;
+    const ranges = [];
+    for (const entry of entries) {
+      const month = Number(entry.mes.slice(5, 7)) - 1;
+      const amount = Number(entry.monto);
+      const previous = ranges.at(-1);
+      if (previous && previous.end + 1 === month && previous.amount === amount) {
+        previous.end = month;
+      } else {
+        ranges.push({ start: month, end: month, amount });
       }
-      card.append(list);
     }
-    container.append(card);
+    const months = ranges.map(range => {
+      const name = range.start === range.end ? monthNames[range.start] : `${monthNames[range.start]}–${monthNames[range.end]}`;
+      return `${name}: ${money.format(range.amount)}${range.start === range.end ? '' : ' por mes'}`;
+    }).join('; ');
+    const row = document.createElement('tr');
+    const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+    cell(row, date).dataset.label = 'Fecha';
+    cell(row, payment.comprobante || '—').dataset.label = 'Comprobante';
+    cell(row, months).dataset.label = 'Meses y monto por mes';
+    cell(row, money.format(applied)).dataset.label = 'Aplicado en el año';
+    const state = cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado');
+    state.dataset.label = 'Estado';
+    if (payment.anulado_en) state.className = 'history-year-cancelled';
+    container.append(row);
   }
   const neighbor = neighbors.find(item => String(item.id) === $('#history-year-neighbor').value);
   $('#history-year-status').textContent = matches

@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "build:excel": "esbuild src/exportar-vecinos.js --bundle --minify --format=iife --global-name=ExportarVecinos --outfile=exportar-vecinos.js",
-    "test": "node --test tests/exportar-vecinos.test.js"
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
     "exceljs": "4.4.0"

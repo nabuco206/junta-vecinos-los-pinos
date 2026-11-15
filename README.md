@@ -104,9 +104,9 @@ a todos.
   incluidos los anulados, con independencia del año seleccionado en el tablero.
   Cada comprobante muestra por separado los meses y el monto aplicado a cada uno;
   los meses se distribuyen en filas según el tamaño de pantalla.
-- **Historial de pagos 2** muestra para un vecino y año los pagos aplicados a
-  cada mes, incluidos los anulados identificados como tales. Los totales no
-  incluyen pagos anulados; un mes sin pagos no implica necesariamente deuda.
+- **Historial de pagos 2** muestra una fila por pago con los meses y montos
+  aplicados al año seleccionado, incluidos los pagos anulados identificados
+  como tales. Los totales no incluyen pagos anulados.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
   Los meses pagados anteriores al inicio de cobro se muestran en el historial
