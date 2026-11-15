@@ -191,13 +191,13 @@ async function loadHistory() {
     for (const payment of data) {
       const row = document.createElement('tr');
       const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
-      cell(row, date);
-      cell(row, payment.comprobante || '—');
+      cell(row, date).dataset.label = 'Fecha';
+      cell(row, payment.comprobante || '—').dataset.label = 'N.º comprobante';
       const months = cell(row, '');
+      months.dataset.label = 'Cuota mes y año';
+      months.className = 'history-months-cell';
       const list = document.createElement('div');
       list.className = 'history-months';
-      list.tabIndex = 0;
-      list.setAttribute('aria-label', 'Meses y montos aplicados');
       for (const item of payment.aplicaciones) {
         const month = document.createElement('span');
         month.className = 'history-month';
@@ -210,8 +210,8 @@ async function loadHistory() {
       }
       if (!payment.aplicaciones.length) list.textContent = 'Sin cuotas aplicadas';
       months.append(list);
-      cell(row, money.format(payment.monto));
-      cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado');
+      cell(row, money.format(payment.monto)).dataset.label = 'Monto total';
+      cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado').dataset.label = 'Estado';
       const action = cell(row, '');
       if (!payment.anulado_en) {
         const button = document.createElement('button');
