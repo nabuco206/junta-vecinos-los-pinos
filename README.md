@@ -35,7 +35,8 @@ las funciones correspondientes.
 7. Ejecuta `supabase/comprobante.sql` para exigir el número de comprobante en
    cada pago nuevo; luego vuelve a ejecutar `historial_vecino.sql` y
    `portal_vecinos.sql`. Los pagos anteriores quedan sin comprobante.
-8. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
+8. Ejecuta `supabase/exencion_cuotas.sql` después de los scripts anteriores.
+9. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
    mensual para cada año necesario, registra los vecinos con su mes de inicio
    y registra los pagos.
 
@@ -75,8 +76,13 @@ a todos.
 ## Funcionamiento
 
 - En Vecinos, tesorería puede descargar un archivo Excel con ID, nombre, RUT y
-  mes de inicio de cobro. El archivo contiene datos personales; guárdalo y
+  mes de inicio de cobro y condición de pago. El archivo contiene datos personales; guárdalo y
   compártelo con cuidado.
+- La opción **No paga cuota** exime al vecino de todos los meses, incluso los
+  anteriores. Sus pagos existentes y su historial se conservan; no se aceptan
+  nuevos pagos mientras esté exento. Al desmarcarla vuelven a calcularse sus
+  cuotas desde el inicio, considerando los pagos registrados. No vincula
+  automáticamente a integrantes de una misma vivienda.
 - Tesorería puede corregir nombre, RUT y mes de inicio en el listado de vecinos.
   Cambiar el mes puede alterar la deuda y no reasigna pagos existentes. No se
   permite fijarlo después de un mes con pagos vigentes aplicados.

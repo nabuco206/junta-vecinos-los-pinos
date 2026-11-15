@@ -13,6 +13,7 @@ create table cuotas_privado.vecinos (
   nombre text not null check (length(btrim(nombre)) between 1 and 100),
   rut text not null unique check (length(btrim(rut)) between 1 and 30),
   inicio date not null check (inicio = date_trunc('month', inicio)::date),
+  no_paga_cuota boolean not null default false,
   creado_en timestamptz not null default now()
 );
 create table cuotas_privado.aranceles (
@@ -66,7 +67,7 @@ begin
     'cuotas', coalesce((
       select jsonb_agg(jsonb_build_object(
         'vecino_id', v.id, 'mes', m.mes::date,
-        'monto', a.monto, 'pagado', coalesce(p.pagado, 0)
+        'monto', case when v.no_paga_cuota then 0 else a.monto end, 'pagado', coalesce(p.pagado, 0)
       ) order by v.id, m.mes)
       from cuotas_privado.vecinos v
       cross join lateral generate_series(

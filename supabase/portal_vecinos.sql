@@ -2,6 +2,7 @@
 begin;
 
 alter table cuotas_privado.pagos add column if not exists comprobante text;
+alter table cuotas_privado.vecinos add column if not exists no_paga_cuota boolean not null default false;
 
 create schema if not exists extensions;
 create extension if not exists pgcrypto with schema extensions;
@@ -53,6 +54,7 @@ declare
   v_inicio date;
   v_vecino_id bigint;
   v_nombre text;
+  v_no_paga_cuota boolean;
   v_mes_actual date := date_trunc('month', current_date)::date;
   v_anio_actual integer := extract(year from current_date)::integer;
   v_resultado jsonb;
@@ -87,7 +89,7 @@ begin
   v_rut := regexp_replace(upper(coalesce(p_rut, '')), '[^0-9K]', '', 'g');
   if v_rut !~ '^[0-9]{1,8}[0-9K]$' then return jsonb_build_object('error', 'RUT o clave incorrectos.'); end if;
 
-  select v.id, v.nombre, v.inicio into v_vecino_id, v_nombre, v_inicio
+  select v.id, v.nombre, v.inicio, v.no_paga_cuota into v_vecino_id, v_nombre, v_inicio, v_no_paga_cuota
     from cuotas_privado.vecinos v
     where regexp_replace(upper(btrim(v.rut)), '[^0-9K]', '', 'g') = v_rut;
   if v_vecino_id is null then return jsonb_build_object('error', 'RUT o clave incorrectos.'); end if;
@@ -96,17 +98,17 @@ begin
   end if;
 
   select jsonb_build_object(
-    'vecino', jsonb_build_object('nombre', v_nombre, 'rut', v_rut),
+    'vecino', jsonb_build_object('nombre', v_nombre, 'rut', v_rut, 'no_paga_cuota', v_no_paga_cuota),
     'anio_inicio', extract(year from v_inicio)::integer,
     'anio_actual', v_anio_actual,
     'mes_actual', v_mes_actual,
-    'configuracion_completa', not exists (
+    'configuracion_completa', v_no_paga_cuota or not exists (
       select 1
       from generate_series(extract(year from v_inicio)::integer, v_anio_actual) y(anio)
       left join cuotas_privado.aranceles a on a.anio = y.anio::integer
       where a.anio is null
     ),
-    'deuda_hasta_hoy', coalesce((
+    'deuda_hasta_hoy', case when v_no_paga_cuota then 0 else coalesce((
       select sum(greatest(a.monto - coalesce(p.pagado, 0), 0))
       from generate_series(
         v_inicio::timestamp, v_mes_actual::timestamp, interval '1 month'
@@ -119,11 +121,11 @@ begin
         where pg.vecino_id = v_vecino_id and pg.anulado_en is null
           and ap.mes = m.mes::date
       ) p on true
-    ), 0),
+    ), 0) end,
     'cuotas', coalesce((
       select jsonb_agg(jsonb_build_object(
         'mes', m.mes::date,
-        'monto', a.monto,
+        'monto', case when v_no_paga_cuota then 0 else a.monto end,
         'pagado', coalesce(p.pagado, 0)
       ) order by m.mes)
       from generate_series(

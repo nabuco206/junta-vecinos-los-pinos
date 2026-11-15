@@ -71,11 +71,12 @@ async function loadYear(year, expectedSession) {
   }
   yearSelect.value = String(year);
   $('#welcome').textContent = `Hola, ${data.vecino.nombre}`;
-  $('#status').textContent = data.configuracion_completa
+  const exento = data.vecino.no_paga_cuota;
+  $('#status').textContent = exento ? 'Estado: No paga cuota' : data.configuracion_completa
     ? data.deuda_hasta_hoy === 0 ? 'Estado: Al día' : 'Estado: Pendiente'
     : 'Estado: Pendiente · Hay cuotas anuales sin monto configurado. Contacta a la directiva.';
   $('#status').classList.toggle('overdue', !data.configuracion_completa || data.deuda_hasta_hoy > 0);
-  $('#balance').textContent = data.configuracion_completa
+  $('#balance').textContent = exento ? 'Estás exento del pago de cuotas.' : data.configuracion_completa
     ? data.deuda_hasta_hoy === 0
       ? 'No tienes cuotas pendientes hasta el mes actual.'
       : `Saldo pendiente hasta ${monthNames[Number(data.mes_actual.slice(5, 7)) - 1]} ${data.mes_actual.slice(0, 4)}: ${money.format(data.deuda_hasta_hoy)}.`
@@ -85,13 +86,13 @@ async function loadYear(year, expectedSession) {
   dues.replaceChildren();
   for (const due of data.cuotas) {
     const row = document.createElement('tr');
-    const balance = due.monto === null ? null : due.monto - due.pagado;
+    const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
     for (const value of [
       monthNames[Number(due.mes.slice(5, 7)) - 1],
       due.monto === null ? 'Sin configurar' : money.format(due.monto),
       money.format(due.pagado),
       balance === null ? '—' : money.format(balance),
-      balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente'
+      exento ? 'Exento' : balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente'
     ]) {
       const cell = document.createElement('td');
       cell.textContent = value;

@@ -63,6 +63,8 @@
             <label>Nombre<input name="nombre" maxlength="100" required></label>
             <label>RUT<input name="rut" maxlength="30" required></label>
             <label>Mes de inicio de cobro<input name="inicio" type="month" min="2000-01" max="2100-12" required></label>
+            <label class="checkbox"><input name="no_paga_cuota" type="checkbox"> No paga cuota</label>
+            <p>La exención se aplica a todos los meses. Los pagos anteriores se conservan.</p>
             <button type="submit" id="neighbor-submit">Guardar vecino</button>
             <button type="button" id="neighbor-cancel" class="outline" hidden>Cancelar modificación</button>
           </form>
@@ -80,7 +82,7 @@
           <p id="neighbors-empty" hidden>No hay vecinos registrados.</p>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nombre</th><th>RUT</th><th>Inicio de cobro</th><th>Acción</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>RUT</th><th>Inicio de cobro</th><th>Cuota</th><th>Acción</th></tr></thead>
               <tbody id="neighbors-list"></tbody>
             </table>
           </div>

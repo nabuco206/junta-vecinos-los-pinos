@@ -12,6 +12,8 @@ p { color: #566176; line-height: 1.5; } header p { color: #e2ebf8; }
 form { display: grid; gap: 12px; } label { display: grid; gap: 6px; font-weight: 600; }
 input, select, button { font: inherit; border-radius: 6px; min-height: 42px; }
 input, select { width: 100%; padding: 8px; border: 1px solid #aebacc; }
+.checkbox { display: flex; align-items: center; gap: 10px; }
+.checkbox input { width: 20px; height: 20px; min-height: 0; }
 button { padding: 8px 14px; border: 0; background: #245cdb; color: white; font-weight: 600; cursor: pointer; }
 button:hover { background: #174bbd; } button:disabled { opacity: .6; cursor: wait; }
 button.secondary { background: white; color: #173c70; }

@@ -148,11 +148,12 @@ function resetNeighborForm() {
 }
 
 function editNeighbor(neighbor) {
-  editingNeighbor = { id: neighbor.id, inicio: neighbor.inicio.slice(0, 7) };
+  editingNeighbor = { id: neighbor.id, inicio: neighbor.inicio.slice(0, 7), no_paga_cuota: neighbor.no_paga_cuota };
   const form = $('#neighbor-form');
   form.elements.nombre.value = neighbor.nombre;
   form.elements.rut.value = neighbor.rut;
   form.elements.inicio.value = editingNeighbor.inicio;
+  form.elements.no_paga_cuota.checked = neighbor.no_paga_cuota;
   $('#neighbor-form-title').textContent = 'Modificar vecino';
   $('#neighbor-submit').textContent = 'Guardar cambios';
   $('#neighbor-cancel').hidden = false;
@@ -227,11 +228,12 @@ function render(data) {
   neighborsList.replaceChildren();
   $('#neighbors-empty').hidden = data.vecinos.length > 0;
   for (const neighbor of data.vecinos) {
-    select.add(new Option(`${neighbor.nombre} · ${neighbor.rut}`, neighbor.id));
+    if (!neighbor.no_paga_cuota) select.add(new Option(`${neighbor.nombre} · ${neighbor.rut}`, neighbor.id));
     const row = document.createElement('tr');
     cell(row, neighbor.nombre);
     cell(row, neighbor.rut);
     cell(row, `${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}`);
+    cell(row, neighbor.no_paga_cuota ? 'No paga cuota' : 'Paga cuota');
     const action = cell(row, '');
     const button = document.createElement('button');
     button.type = 'button';
@@ -264,7 +266,7 @@ function render(data) {
     cell(row, due.monto === null ? 'Sin configurar' : money.format(due.monto));
     cell(row, money.format(due.pagado));
     cell(row, balance === null ? '—' : money.format(balance));
-    cell(row, balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente');
+    cell(row, neighbor.no_paga_cuota ? 'Exento' : balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente');
     dues.append(row);
   }
   const fee = data.aranceles.find(item => item.anio === Number(yearInput.value));
@@ -370,22 +372,25 @@ $('#neighbor-form').addEventListener('submit', event => {
   const neighbor = editingNeighbor;
   if (neighbor && form.elements.inicio.value !== neighbor.inicio
     && !confirm('Cambiar el mes de inicio puede modificar la deuda. Los pagos existentes no se reasignarán. ¿Continuar?')) return;
+  if (neighbor && form.elements.no_paga_cuota.checked !== neighbor.no_paga_cuota
+    && !confirm('Cambiar esta opción afecta todas las cuotas, también las anteriores. Los pagos registrados se conservan. ¿Continuar?')) return;
   withBusy(form, async () => {
     const parameters = {
       p_nombre: form.elements.nombre.value.trim(), p_rut: form.elements.rut.value.trim(),
-      p_inicio: `${form.elements.inicio.value}-01`
+      p_inicio: `${form.elements.inicio.value}-01`,
+      p_no_paga_cuota: form.elements.no_paga_cuota.checked
     };
-    if (neighbor) {
-      try {
-        await rpc('cuotas_editar_vecino', { p_vecino: neighbor.id, ...parameters });
-      } catch (error) {
-        if (error.code === 'PGRST202') {
-          throw new Error('Para habilitar la modificación, ejecuta supabase/editar_vecinos.sql en Supabase.');
-        }
-        throw error;
+    const name = neighbor ? 'cuotas_editar_vecino' : 'cuotas_crear_vecino';
+    const args = neighbor ? { p_vecino: neighbor.id, ...parameters } : parameters;
+    try {
+      await rpc(name, args);
+    } catch (error) {
+      if (error.code !== 'PGRST202') throw error;
+      if (parameters.p_no_paga_cuota || neighbor?.no_paga_cuota !== undefined) {
+        throw new Error('Para habilitar esta opción, ejecuta supabase/exencion_cuotas.sql en Supabase.');
       }
-    } else {
-      await rpc('cuotas_crear_vecino', parameters);
+      const { p_no_paga_cuota, ...legacyArgs } = args;
+      await rpc(name, legacyArgs);
     }
     resetNeighborForm();
     await updateAfterSave(neighbor ? 'Datos del vecino modificados.' : 'Vecino agregado.');
