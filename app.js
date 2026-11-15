@@ -5,7 +5,6 @@ const SUPABASE_KEY = 'sb_publishable_4xGqOhRfPpMpyAUbgjuOUQ_QxYwdWo1';
 const $ = (selector) => document.querySelector(selector);
 const message = $('#message');
 const yearInput = $('#year');
-const yearTableInput = $('#year-table');
 const money = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 let session = null;
@@ -45,7 +44,6 @@ function setAuthenticated(authenticated) {
     resetNeighborForm();
     $('#neighbors-list').replaceChildren();
     $('#neighbors-empty').hidden = true;
-    $('#dues').replaceChildren();
     $('#payments').replaceChildren();
     neighbors = [];
     historyVersion++;
@@ -65,7 +63,7 @@ function setAuthenticated(authenticated) {
     clearHistoryOverview();
     $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
-    $('#year-info').textContent = '';
+    $('#current-fee').textContent = '';
     $('#summary-neighbors').textContent = '—';
     $('#summary-paid').textContent = '—';
     $('#summary-debt').textContent = '—';
@@ -496,6 +494,14 @@ async function loadHistory() {
   }
 }
 
+function renderCurrentFee(fees) {
+  const year = new Date().getFullYear();
+  const fee = fees.find(item => Number(item.anio) === year);
+  $('#current-fee').textContent = fee
+    ? `Cuota mensual actual (${year}): ${money.format(fee.monto)}.`
+    : `No se ha configurado la cuota mensual para ${year}.`;
+}
+
 function render(data) {
   const select = $('#payment-form').elements.vecino;
   const selected = select.value;
@@ -529,40 +535,23 @@ function render(data) {
   updateHistoryOptions(true, 'history-year');
   if (historyYearSelected && !$('#history-year-neighbor').value) loadHistoryYear();
 
-  const dues = $('#dues');
-  dues.replaceChildren();
   let total = 0;
   const paidTotal = data.pagos.reduce((sum, payment) => payment.anulado_en ? sum : sum +
     payment.aplicaciones.filter(item => Number(item.mes.slice(0, 4)) === Number(yearInput.value))
       .reduce((subtotal, item) => subtotal + Number(item.monto), 0), 0);
   let unconfigured = false;
   for (const due of data.cuotas) {
-    const neighbor = data.vecinos.find(item => item.id === due.vecino_id);
-    const row = document.createElement('tr');
     const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
     if (balance !== null) total += balance;
     else unconfigured = true;
-    cell(row, neighbor.nombre);
-    cell(row, neighbor.rut);
-    cell(row, monthNames[Number(due.mes.slice(5, 7)) - 1]);
-    cell(row, due.monto === null ? 'Sin configurar' : money.format(due.monto));
-    cell(row, money.format(due.pagado));
-    cell(row, balance === null ? '—' : money.format(balance));
-    cell(row, neighbor.no_paga_cuota ? 'Exento' : balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente');
-    dues.append(row);
   }
-  const fee = data.aranceles.find(item => item.anio === Number(yearInput.value));
+  renderCurrentFee(data.aranceles);
   $('#summary-neighbors').textContent = String(data.vecinos.length);
   $('#summary-paid').textContent = money.format(paidTotal);
   $('#summary-debt').textContent = money.format(total);
   $('#summary-info').textContent = unconfigured
     ? `Resumen de ${yearInput.value}. Hay cuotas sin monto configurado; la deuda mostrada no las incluye.`
     : `Resumen de ${yearInput.value}. Los montos pagados corresponden a cuotas aplicadas a ese año.`;
-  yearTableInput.value = yearInput.value;
-  $('#year-info').textContent = fee
-    ? `Cuota mensual: ${money.format(fee.monto)}. Saldo del año completo (incluye meses futuros): ${money.format(total)}.`
-    : 'No se ha configurado la cuota mensual para este año.';
-
 }
 
 async function load() {
@@ -602,6 +591,9 @@ async function updateAfterSave(text) {
     showMessage(text);
   } catch (error) {
     if (historyReceiptQuery) $('#history-status').textContent = `No se pudo actualizar la búsqueda: ${error.message}`;
+    if ($('#current-fee').textContent === 'Actualizando valor de la cuota…') {
+      $('#current-fee').textContent = 'No se pudo actualizar el valor de la cuota.';
+    }
     showMessage(`${text} No se pudo actualizar la pantalla: ${error.message}`, true);
   }
 }
@@ -786,7 +778,7 @@ $('#fee-form').addEventListener('submit', event => {
   withBusy(form, async () => {
     await rpc('cuotas_guardar_arancel', { p_anio: Number(form.elements.anio.value), p_monto: Number(form.elements.monto.value) });
     yearInput.value = form.elements.anio.value;
-    yearTableInput.value = yearInput.value;
+    $('#current-fee').textContent = 'Actualizando valor de la cuota…';
     await updateAfterSave('Monto anual guardado.');
   });
 });
@@ -839,12 +831,10 @@ async function cancelPayment(id, button) {
 
 function changeYear(value) {
   yearInput.value = value;
-  yearTableInput.value = value;
   load().catch(error => showMessage(error.message, true));
 }
 
 yearInput.addEventListener('change', () => changeYear(yearInput.value));
-yearTableInput.addEventListener('change', () => changeYear(yearTableInput.value));
 const today = new Date();
 for (let year = 2100; year >= 2000; year--) {
   $('#history-year-select').add(new Option(String(year), String(year)));
@@ -855,6 +845,5 @@ for (let year = overviewLastYear; year >= overviewFirstYear; year--) {
 $('#history-year-select').value = String(today.getFullYear());
 $('#history-overview-year').value = defaultOverviewYear();
 yearInput.value = today.getFullYear();
-yearTableInput.value = today.getFullYear();
 $('#fee-form').elements.anio.value = today.getFullYear();
 $('#payment-form').elements.fecha.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;

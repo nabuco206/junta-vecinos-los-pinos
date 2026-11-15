@@ -93,6 +93,9 @@ a todos.
 - Los importes son pesos chilenos enteros. Cada año tiene una cuota mensual
   común. No se puede modificar un monto anual si existen aplicaciones de pagos
   para ese año, incluso si esos pagos fueron anulados.
+- **Valor Cuota** muestra el monto configurado para el año actual y permite
+  configurar cuotas de otros años. Si no existe un monto para el año actual,
+  se informa en pantalla.
 - Los pagos parciales o adelantados se aplican a las cuotas pendientes más
   antiguas desde el mes de inicio. Si faltan años o el monto excede las cuotas
   configuradas, se rechaza el pago completo; no se guarda saldo a favor.

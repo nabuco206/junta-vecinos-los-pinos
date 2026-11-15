@@ -47,6 +47,18 @@ function setup(payments, year = '2024') {
   return { context, document, render, rows, status };
 }
 
+test('muestra la cuota del año actual independientemente del año del tablero', () => {
+  const app = setup([]);
+  const currentYear = new Date().getFullYear();
+  app.document.querySelector('#year').value = String(currentYear - 1);
+  app.context.fees = [{ anio: currentYear - 1, monto: 500 }, { anio: currentYear, monto: 1000 }];
+  runInContext('renderCurrentFee(fees)', app.context);
+  assert.equal(app.document.querySelector('#current-fee').textContent, `Cuota mensual actual (${currentYear}): $1.000.`);
+  app.context.fees = [{ anio: currentYear - 1, monto: 500 }];
+  runInContext('renderCurrentFee(fees)', app.context);
+  assert.equal(app.document.querySelector('#current-fee').textContent, `No se ha configurado la cuota mensual para ${currentYear}.`);
+});
+
 test('agrupa meses consecutivos y suma solo aplicaciones vigentes del año', () => {
   const fullYear = Array.from({ length: 12 }, (_, i) => ({ mes: `2024-${String(i + 1).padStart(2, '0')}-01`, monto: 1000 }));
   const app = setup([

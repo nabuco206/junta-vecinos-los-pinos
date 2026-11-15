@@ -70,7 +70,7 @@ th, td { padding: 10px; border-bottom: 1px solid #e1e7f0; white-space: nowrap; }
 .history-overview-table small { display: block; color: #566176; font-size: .72rem; }
 .history-overview-table .history-overview-entry + .history-overview-entry { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e1e7f0; }
 .history-overview-wrap { margin-top: 12px; }
-.history-overview-total { color: #173c70; font-weight: 700; font-size: 1.1rem; }
+.history-overview-total, .current-fee { color: #173c70; font-weight: 700; font-size: 1.1rem; }
 .history-overview-wrap th:first-child { position: sticky; left: 0; z-index: 1; }
 .history-overview-wrap thead th:first-child { z-index: 2; }
 #message { padding: 12px; border-radius: 6px; background: #e8f5ed; color: #21643b; }

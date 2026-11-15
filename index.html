@@ -30,7 +30,7 @@
         <button type="button" class="menu-link" data-view="history">Historial de pagos</button>
         <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
         <button type="button" class="menu-link" data-view="history-overview">Pagos por Año</button>
-        <button type="button" class="menu-link" data-view="dues">Cuotas</button>
+        <button type="button" class="menu-link" data-view="dues">Valor Cuota</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
       <section id="view-dashboard" class="view">
@@ -162,18 +162,15 @@
       </section>
       <section id="view-dues" class="view" hidden>
         <section class="card">
-          <h2>Cuota mensual por año</h2>
+          <h2>Valor Cuota</h2>
+          <p id="current-fee" class="current-fee" aria-live="polite"></p>
+          <h3>Configurar cuota mensual por año</h3>
           <form id="fee-form">
             <label>Año<input name="anio" type="number" min="2000" max="2100" required></label>
             <label>Monto mensual en pesos<input name="monto" type="number" min="1" max="1000000000" step="1" required></label>
             <button type="submit">Guardar monto</button>
           </form>
           <p>El monto de un año no se puede cambiar después de registrar pagos para ese año.</p>
-        </section>
-        <section class="card">
-          <div class="heading"><h2>Estado por año</h2><label>Año<input id="year-table" type="number" min="2000" max="2100" required></label></div>
-          <p id="year-info"></p>
-          <div class="table-wrap"><table><thead><tr><th>Vecino</th><th>RUT</th><th>Mes</th><th>Cuota</th><th>Pagado</th><th>Saldo</th><th>Estado</th></tr></thead><tbody id="dues"></tbody></table></div>
         </section>
       </section>
       <section id="view-access" class="view" hidden>
