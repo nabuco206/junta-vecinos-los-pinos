@@ -190,8 +190,8 @@ async function loadHistory() {
     const neighbor = neighbors.find(item => String(item.id) === selected);
     for (const payment of data) {
       const row = document.createElement('tr');
-      const [year, month, day] = payment.fecha.split('-');
-      cell(row, `${day}/${month}/${year}`);
+      const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+      cell(row, date);
       cell(row, payment.comprobante || '—');
       cell(row, neighbor.nombre);
       cell(row, money.format(payment.monto));
@@ -251,7 +251,9 @@ function render(data) {
   const dues = $('#dues');
   dues.replaceChildren();
   let total = 0;
-  let paidTotal = 0;
+  const paidTotal = data.pagos.reduce((sum, payment) => payment.anulado_en ? sum : sum +
+    payment.aplicaciones.filter(item => Number(item.mes.slice(0, 4)) === Number(yearInput.value))
+      .reduce((subtotal, item) => subtotal + Number(item.monto), 0), 0);
   let unconfigured = false;
   for (const due of data.cuotas) {
     const neighbor = data.vecinos.find(item => item.id === due.vecino_id);
@@ -259,7 +261,6 @@ function render(data) {
     const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
     if (balance !== null) total += balance;
     else unconfigured = true;
-    paidTotal += Number(due.pagado) || 0;
     cell(row, neighbor.nombre);
     cell(row, neighbor.rut);
     cell(row, monthNames[Number(due.mes.slice(5, 7)) - 1]);

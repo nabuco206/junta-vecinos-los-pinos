@@ -19,7 +19,7 @@ begin
       select jsonb_agg(jsonb_build_object('mes', ap.mes, 'monto', ap.monto) order by ap.mes)
       from cuotas_privado.aplicaciones ap where ap.pago_id = p.id
     ), '[]'::jsonb)
-  ) order by p.fecha desc, p.id desc), '[]'::jsonb)
+  ) order by p.fecha desc nulls last, p.id desc), '[]'::jsonb)
   into resultado
   from cuotas_privado.pagos p
   where p.vecino_id = p_vecino;

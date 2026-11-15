@@ -36,7 +36,9 @@ las funciones correspondientes.
    cada pago nuevo; luego vuelve a ejecutar `historial_vecino.sql` y
    `portal_vecinos.sql`. Los pagos anteriores quedan sin comprobante.
 8. Ejecuta `supabase/exencion_cuotas.sql` después de los scripts anteriores.
-9. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
+9. Ejecuta `supabase/pagos_historicos.sql` para admitir pagos históricos con
+   fecha desconocida y comprobantes repetidos entre pagos históricos.
+10. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
    mensual para cada año necesario, registra los vecinos con su mes de inicio
    y registra los pagos.
 
@@ -99,6 +101,10 @@ a todos.
   primero las cuotas que vuelvan a quedar pendientes.
 - El historial de tesorería muestra todos los pagos del vecino seleccionado,
   incluidos los anulados, con independencia del año seleccionado en el tablero.
+- Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
+  Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
+  Los meses pagados anteriores al inicio de cobro se muestran en el historial
+  sin generar cuotas ni deuda antes de ese inicio.
 - El saldo mostrado corresponde al año completo, incluidos meses futuros.
   La sesión de tesorería se mantiene solo en memoria de la página.
 

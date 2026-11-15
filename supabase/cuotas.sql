@@ -91,7 +91,7 @@ begin
           select jsonb_agg(jsonb_build_object('mes', ap.mes, 'monto', ap.monto) order by ap.mes)
           from cuotas_privado.aplicaciones ap where ap.pago_id = p.id
         ), '[]'::jsonb)
-      ) order by p.fecha desc, p.id desc)
+      ) order by p.fecha desc nulls last, p.id desc)
       from cuotas_privado.pagos p
       where extract(year from p.fecha) = p_anio
         or exists (select 1 from cuotas_privado.aplicaciones ap

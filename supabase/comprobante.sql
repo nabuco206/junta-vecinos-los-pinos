@@ -3,13 +3,14 @@
 begin;
 
 alter table cuotas_privado.pagos add column if not exists comprobante text;
+alter table cuotas_privado.pagos add column if not exists historico boolean not null default false;
 alter table cuotas_privado.pagos drop constraint if exists pagos_comprobante_check;
 alter table cuotas_privado.pagos add constraint pagos_comprobante_check
   check (comprobante is null or comprobante ~ '^[A-Za-z0-9][A-Za-z0-9./-]{0,29}$');
--- Un mismo comprobante no puede usarse en dos pagos vigentes.
+-- Los pagos históricos pueden compartir comprobante; los pagos nuevos no.
 create unique index if not exists pagos_comprobante_vigente_uidx
   on cuotas_privado.pagos (upper(comprobante))
-  where anulado_en is null and comprobante is not null;
+  where anulado_en is null and comprobante is not null and not historico;
 
 create or replace function public.cuotas_registrar_pago(
   p_vecino bigint, p_monto bigint, p_fecha date, p_comprobante text
@@ -21,7 +22,7 @@ begin
     raise exception 'El número de comprobante es obligatorio (letras, números, punto, guion o barra; máximo 30)';
   end if;
   if exists (select 1 from cuotas_privado.pagos
-    where upper(comprobante) = v_comp and anulado_en is null) then
+    where upper(comprobante) = v_comp and anulado_en is null and not historico) then
     raise exception 'El número de comprobante ya está registrado en otro pago';
   end if;
   pago_id := public.cuotas_registrar_pago(p_vecino, p_monto, p_fecha);

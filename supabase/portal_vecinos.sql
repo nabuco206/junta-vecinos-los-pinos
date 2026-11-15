@@ -52,6 +52,7 @@ declare
   v_hash text;
   v_rut text;
   v_inicio date;
+  v_inicio_historial date;
   v_vecino_id bigint;
   v_nombre text;
   v_no_paga_cuota boolean;
@@ -93,13 +94,17 @@ begin
     from cuotas_privado.vecinos v
     where regexp_replace(upper(btrim(v.rut)), '[^0-9K]', '', 'g') = v_rut;
   if v_vecino_id is null then return jsonb_build_object('error', 'RUT o clave incorrectos.'); end if;
-  if p_anio < extract(year from v_inicio)::integer then
+  select least(v_inicio, coalesce(min(ap.mes), v_inicio)) into v_inicio_historial
+    from cuotas_privado.aplicaciones ap
+    join cuotas_privado.pagos pg on pg.id = ap.pago_id
+    where pg.vecino_id = v_vecino_id;
+  if p_anio < extract(year from v_inicio_historial)::integer then
     raise exception 'Año fuera del período de cuotas';
   end if;
 
   select jsonb_build_object(
     'vecino', jsonb_build_object('nombre', v_nombre, 'rut', v_rut, 'no_paga_cuota', v_no_paga_cuota),
-    'anio_inicio', extract(year from v_inicio)::integer,
+    'anio_inicio', extract(year from v_inicio_historial)::integer,
     'anio_actual', v_anio_actual,
     'mes_actual', v_mes_actual,
     'configuracion_completa', v_no_paga_cuota or not exists (
@@ -156,7 +161,7 @@ begin
           select jsonb_agg(jsonb_build_object('mes', ap.mes, 'monto', ap.monto) order by ap.mes)
           from cuotas_privado.aplicaciones ap where ap.pago_id = pg.id
         ), '[]'::jsonb)
-      ) order by pg.fecha desc, pg.id desc)
+      ) order by pg.fecha desc nulls last, pg.id desc)
       from cuotas_privado.pagos pg
       where pg.vecino_id = v_vecino_id
         and (extract(year from pg.fecha) = p_anio or exists (
