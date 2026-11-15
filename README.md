@@ -38,7 +38,9 @@ las funciones correspondientes.
 8. Ejecuta `supabase/exencion_cuotas.sql` después de los scripts anteriores.
 9. Ejecuta `supabase/pagos_historicos.sql` para admitir pagos históricos con
    fecha desconocida y comprobantes repetidos entre pagos históricos.
-10. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
+10. Ejecuta `supabase/editar_pago.sql` para habilitar la modificación de pagos.
+    También debe ejecutarse en instalaciones existentes; no cambia pagos.
+11. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
    mensual para cada año necesario, registra los vecinos con su mes de inicio
    y registra los pagos.
 
@@ -102,6 +104,13 @@ a todos.
 - Al anular un pago se conserva su historial y se liberan sus aplicaciones;
   las aplicaciones de otros pagos no se reasignan. El siguiente pago cubre
   primero las cuotas que vuelvan a quedar pendientes.
+- En **Registrar pago** se puede buscar por comprobante y modificar un pago
+  vigente, incluso si hay comprobantes históricos repetidos. Es posible editar
+  la fecha y asignar manualmente montos a los meses; si se cambian importes o
+  meses, su suma debe coincidir con el total. La edición permite superar la
+  cuota mensual, afecta la deuda y no modifica otros pagos. Solo los pagos
+  históricos pueden quedar sin fecha. Cada cambio conserva un registro privado
+  de los valores anteriores, nuevos, usuario y fecha.
 - En tesorería, **Registrar pago** e **Historial de pagos** son opciones
   separadas del menú. El historial muestra todos los pagos del vecino seleccionado,
   incluidos los anulados, con independencia del año seleccionado en el tablero.

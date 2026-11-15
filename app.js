@@ -20,6 +20,9 @@ let historyOverviewVersion = 0;
 let historyOverviewPayments = null;
 let historyOverviewLoading = false;
 let historyOverviewExporting = false;
+let paymentEditVersion = 0;
+let paymentEditQuery = '';
+let editingPayment = null;
 const overviewFirstYear = 2014;
 const overviewLastYear = 2027;
 
@@ -63,6 +66,12 @@ function setAuthenticated(authenticated) {
     clearHistoryOverview();
     $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
+    paymentEditVersion++;
+    paymentEditQuery = '';
+    $('#payment-edit-search').value = '';
+    $('#payment-edit-search-status').textContent = '';
+    $('#payment-edit-results').replaceChildren();
+    resetPaymentEdit();
     $('#current-fee').textContent = '';
     $('#fee-list').replaceChildren();
     $('#fee-list-table').hidden = true;
@@ -189,6 +198,117 @@ async function fetchNeighborHistories(snapshot, isCurrent) {
   }
   await Promise.all(Array.from({ length: Math.min(6, snapshot.length) }, worker));
   return payments;
+}
+
+function resetPaymentEdit() {
+  editingPayment = null;
+  $('#payment-edit-form').reset();
+  $('#payment-edit-form').hidden = true;
+  $('#payment-edit-months').replaceChildren();
+  $('#payment-edit-sum').textContent = '';
+}
+
+function updatePaymentEditSum() {
+  const amounts = [...document.querySelectorAll('#payment-edit-months input[name="aplicado"]')];
+  const valid = amounts.every(input => input.validity.valid && input.value !== '');
+  const total = amounts.reduce((sum, input) => sum + Number(input.value), 0);
+  $('#payment-edit-sum').textContent = valid
+    ? `Total aplicado a meses: ${money.format(total)}.`
+    : 'Completa los montos aplicados a cada mes.';
+}
+
+function addPaymentEditMonth(application = null) {
+  const row = document.createElement('div');
+  row.className = 'payment-edit-month';
+  const monthLabel = document.createElement('label');
+  monthLabel.textContent = 'Mes';
+  const month = document.createElement('input');
+  month.type = 'month';
+  month.name = 'mes';
+  month.required = true;
+  month.value = application ? application.mes.slice(0, 7) : '';
+  monthLabel.append(month);
+  const amountLabel = document.createElement('label');
+  amountLabel.textContent = 'Monto aplicado';
+  const amount = document.createElement('input');
+  amount.type = 'number';
+  amount.name = 'aplicado';
+  amount.min = '1';
+  amount.max = '1000000000';
+  amount.step = '1';
+  amount.required = true;
+  amount.value = application ? String(application.monto) : '';
+  amount.addEventListener('input', updatePaymentEditSum);
+  amountLabel.append(amount);
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'outline';
+  remove.textContent = 'Quitar mes';
+  remove.addEventListener('click', () => { row.remove(); updatePaymentEditSum(); });
+  row.append(monthLabel, amountLabel, remove);
+  $('#payment-edit-months').append(row);
+  updatePaymentEditSum();
+}
+
+function startPaymentEdit(payment, neighbor) {
+  resetPaymentEdit();
+  editingPayment = { payment, neighbor };
+  const form = $('#payment-edit-form');
+  form.elements.fecha.value = payment.fecha || '';
+  form.elements.monto.value = payment.monto;
+  $('#payment-edit-description').textContent = `${neighbor.nombre} · Comprobante: ${payment.comprobante || '—'}`;
+  for (const application of payment.aplicaciones) addPaymentEditMonth(application);
+  updatePaymentEditSum();
+  form.hidden = false;
+  form.elements.fecha.focus();
+}
+
+async function searchPaymentEdit() {
+  const query = paymentEditQuery;
+  const version = ++paymentEditVersion;
+  const activeSession = session;
+  const snapshot = [...neighbors];
+  $('#payment-edit-results').replaceChildren();
+  if (!query || !activeSession) {
+    $('#payment-edit-search-status').textContent = 'Ingresa un número de comprobante.';
+    return;
+  }
+  $('#payment-edit-search-status').textContent = 'Buscando comprobante…';
+  try {
+    const histories = await fetchNeighborHistories(snapshot, () => version === paymentEditVersion && session === activeSession);
+    if (version !== paymentEditVersion || session !== activeSession) return;
+    let matches = 0;
+    for (const neighbor of snapshot) {
+      for (const payment of histories.get(String(neighbor.id))) {
+        if (!payment.comprobante || !payment.comprobante.toUpperCase().includes(query.toUpperCase())) continue;
+        const result = document.createElement('div');
+        result.className = 'payment-edit-result';
+        const detail = document.createElement('span');
+        const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
+        detail.textContent = `${neighbor.nombre} · Comprobante: ${payment.comprobante} · Pago #${payment.id}${date ? ` · ${date}` : ''} · ${money.format(payment.monto)}${payment.anulado_en ? ' · Anulado' : ''}`;
+        result.append(detail);
+        if (!payment.anulado_en) {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'outline';
+          button.textContent = 'Modificar';
+          button.setAttribute('aria-label', `Modificar pago ${payment.id}, comprobante ${payment.comprobante} de ${neighbor.nombre}${date ? `, ${date}` : ''}, ${money.format(payment.monto)}`);
+          button.addEventListener('click', () => startPaymentEdit(payment, neighbor));
+          result.append(button);
+        }
+        $('#payment-edit-results').append(result);
+        matches++;
+      }
+    }
+    $('#payment-edit-search-status').textContent = matches
+      ? `${matches} ${matches === 1 ? 'pago encontrado' : 'pagos encontrados'}.`
+      : 'No se encontraron pagos para ese comprobante.';
+  } catch (error) {
+    if (version !== paymentEditVersion || session !== activeSession) return;
+    paymentEditVersion++;
+    $('#payment-edit-results').replaceChildren();
+    $('#payment-edit-search-status').textContent = `No se pudo buscar el comprobante: ${error.message}`;
+  }
 }
 
 function showView(name) {
@@ -593,6 +713,11 @@ async function withBusy(form, operation) {
 
 async function updateAfterSave(text) {
   historyVersion++;
+  paymentEditVersion++;
+  if (paymentEditQuery) {
+    $('#payment-edit-results').replaceChildren();
+    $('#payment-edit-search-status').textContent = 'Actualizando resultados…';
+  }
   if (historyReceiptQuery) {
     $('#payments').replaceChildren();
     $('#history-status').textContent = 'Actualizando resultados…';
@@ -605,9 +730,11 @@ async function updateAfterSave(text) {
     else if ($('#history-neighbor').value) await loadHistory();
     if ($('#history-year-neighbor').value) await loadHistoryYear();
     if (!$('#view-history-overview').hidden) await loadHistoryOverview();
+    if (paymentEditQuery) await searchPaymentEdit();
     showMessage(text);
   } catch (error) {
     if (historyReceiptQuery) $('#history-status').textContent = `No se pudo actualizar la búsqueda: ${error.message}`;
+    if (paymentEditQuery) $('#payment-edit-search-status').textContent = `No se pudo actualizar la búsqueda: ${error.message}`;
     if ($('#current-fee').textContent === 'Actualizando valor de la cuota…') {
       $('#current-fee').textContent = 'No se pudo actualizar el valor de la cuota.';
       $('#fee-list-status').textContent = 'No se pudo actualizar el listado de valores.';
@@ -831,7 +958,66 @@ $('#payment-form').addEventListener('submit', event => {
     });
     form.elements.monto.value = '';
     form.elements.comprobante.value = '';
+    resetPaymentEdit();
     await updateAfterSave('Pago registrado.');
+  });
+});
+
+$('#payment-edit-search').addEventListener('input', () => {
+  paymentEditVersion++;
+  paymentEditQuery = '';
+  resetPaymentEdit();
+  $('#payment-edit-results').replaceChildren();
+  $('#payment-edit-search-status').textContent = 'Ingresa un comprobante y pulsa Buscar comprobante.';
+});
+$('#payment-edit-search-form').addEventListener('submit', event => {
+  event.preventDefault();
+  resetPaymentEdit();
+  paymentEditQuery = $('#payment-edit-search').value.trim();
+  searchPaymentEdit();
+});
+$('#payment-edit-add-month').addEventListener('click', () => addPaymentEditMonth());
+$('#payment-edit-cancel').addEventListener('click', resetPaymentEdit);
+$('#payment-edit-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const selected = editingPayment;
+  if (!selected) return;
+  const applications = [...document.querySelectorAll('#payment-edit-months .payment-edit-month')].map(row => ({
+    mes: `${row.querySelector('input[name="mes"]').value}-01`,
+    monto: Number(row.querySelector('input[name="aplicado"]').value)
+  })).sort((a, b) => a.mes.localeCompare(b.mes));
+  if (new Set(applications.map(item => item.mes)).size !== applications.length) {
+    showMessage('No puedes repetir un mes en el mismo pago.', true);
+    return;
+  }
+  const original = {
+    fecha: selected.payment.fecha || null,
+    monto: Number(selected.payment.monto),
+    aplicaciones: selected.payment.aplicaciones.map(item => ({ mes: item.mes, monto: Number(item.monto) }))
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+  };
+  const amount = Number(form.elements.monto.value);
+  const total = applications.reduce((sum, item) => sum + item.monto, 0);
+  if ((amount !== original.monto || JSON.stringify(applications) !== JSON.stringify(original.aplicaciones)) && total !== amount) {
+    showMessage('La suma aplicada a los meses debe coincidir con el monto del pago.', true);
+    return;
+  }
+  if (!confirm(`¿Guardar la modificación del comprobante ${selected.payment.comprobante} de ${selected.neighbor.nombre}? Monto: ${money.format(amount)}. Esto puede modificar la deuda y los totales.`)) return;
+  const activeSession = session;
+  withBusy(form, async () => {
+    try {
+      await rpc('cuotas_editar_pago', {
+        p_pago: selected.payment.id, p_fecha: form.elements.fecha.value || null,
+        p_monto: amount, p_aplicaciones: applications, p_original: original
+      });
+    } catch (error) {
+      if (error.code === 'PGRST202') throw new Error('Para modificar pagos, ejecuta supabase/editar_pago.sql en Supabase.');
+      throw error;
+    }
+    if (session !== activeSession) return;
+    if (editingPayment === selected) resetPaymentEdit();
+    await updateAfterSave('Pago modificado.');
   });
 });
 
@@ -842,6 +1028,7 @@ async function cancelPayment(id, button) {
   button.disabled = true;
   try {
     await rpc('cuotas_anular_pago', { p_pago: id, p_motivo: reason });
+    resetPaymentEdit();
     await updateAfterSave('Pago anulado.');
   } catch (error) {
     showMessage(error.message, true);

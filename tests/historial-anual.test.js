@@ -13,6 +13,7 @@ class Element {
     this.classList = { toggle() {} };
   }
   addEventListener() {}
+  setAttribute() {}
   add(child) { this.children.push(child); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
@@ -223,6 +224,22 @@ test('descarta respuestas antiguas y muestra errores al buscar comprobantes', as
   await runInContext('loadHistoryReceipt()', app.context);
   assert.match(app.document.querySelector('#history-status').textContent, /Conexión perdida/);
   assert.equal(app.document.querySelector('#payments').children.length, 0);
+});
+
+test('la búsqueda para modificar distingue comprobantes repetidos y pagos anulados', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Pedro' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1
+    ? [{ id: 10, comprobante: '123', fecha: null, monto: 1000, aplicaciones: [] }]
+    : [{ id: 11, comprobante: '123', fecha: '2025-01-02', monto: 2000, anulado_en: '2025-02-01', aplicaciones: [] }];
+  runInContext("neighbors = neighborList; session = {}; rpc = mockRpc; paymentEditQuery = '123'", app.context);
+  await runInContext('searchPaymentEdit()', app.context);
+  const results = app.document.querySelector('#payment-edit-results').children;
+  assert.equal(results.length, 2);
+  assert.match(results[0].children[0].textContent, /Ana.*Pago #10/);
+  assert.equal(results[0].children.length, 2);
+  assert.match(results[1].children[0].textContent, /Pedro.*Pago #11.*Anulado/);
+  assert.equal(results[1].children.length, 1);
 });
 
 test('el portal del vecino deja en blanco las fechas ausentes y conserva las registradas', async () => {

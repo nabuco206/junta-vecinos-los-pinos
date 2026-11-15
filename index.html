@@ -103,6 +103,28 @@
           </form>
           <p>Se aplica a las cuotas pendientes más antiguas. Configura los años necesarios antes de aceptar pagos adelantados.</p>
         </section>
+        <section class="card">
+          <h2>Modificar pago</h2>
+          <form id="payment-edit-search-form" class="history-receipt-form">
+            <label>Buscar por número de comprobante<input id="payment-edit-search" type="search" maxlength="30" autocomplete="off" required></label>
+            <button type="submit">Buscar comprobante</button>
+          </form>
+          <p id="payment-edit-search-status" aria-live="polite"></p>
+          <div id="payment-edit-results"></div>
+          <form id="payment-edit-form" hidden>
+            <h3>Modificar pago seleccionado</h3>
+            <p id="payment-edit-description"></p>
+            <label>Fecha de pago<input name="fecha" type="date"></label>
+            <label>Monto total del pago<input name="monto" type="number" min="1" max="1000000000" step="1" required></label>
+            <h3>Cuotas a las que se aplica</h3>
+            <p>Indica los meses y montos aplicados. Su suma debe coincidir con el monto total si los modificas. Es posible superar la cuota mensual; revisa los importes antes de guardar.</p>
+            <div id="payment-edit-months"></div>
+            <button type="button" id="payment-edit-add-month" class="outline">Agregar mes</button>
+            <p id="payment-edit-sum" aria-live="polite"></p>
+            <button type="submit">Guardar cambios</button>
+            <button type="button" id="payment-edit-cancel" class="outline">Cancelar modificación</button>
+          </form>
+        </section>
       </section>
       <section id="view-history" class="view" hidden>
         <section class="card">
