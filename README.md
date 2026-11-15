@@ -112,6 +112,8 @@ a todos.
 - **Pagos por Año** presenta a todos los vecinos y los doce meses de un
   año, con comprobante y fecha de cada pago vigente aplicado. Los pagos anulados
   se consultan en los otros historiales. Una celda vacía no implica deuda.
+  El monto recaudado suma los importes vigentes aplicados a los meses del año,
+  aunque el pago se haya realizado en otro año.
   La vista consulta el historial de cada vecino al abrirse y permite cambiar de
   año de 2014 a 2027 sin volver a consultarlo; en pantallas pequeñas se desplaza
   horizontalmente. La tabla del año seleccionado puede descargarse en Excel.

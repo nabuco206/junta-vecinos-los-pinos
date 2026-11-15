@@ -80,6 +80,7 @@ function clearHistoryOverview() {
   updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
   $('#history-overview-status').textContent = '';
+  $('#history-overview-total').textContent = '';
   $('#history-overview-retry').hidden = true;
 }
 
@@ -87,15 +88,17 @@ function overviewRows(year) {
   const { snapshot, paymentsByNeighbor } = historyOverviewPayments;
   return snapshot.map(neighbor => {
     const months = Array.from({ length: 12 }, () => []);
+    let total = 0;
     for (const payment of paymentsByNeighbor.get(String(neighbor.id))) {
       if (payment.anulado_en) continue;
       for (const application of payment.aplicaciones) {
         if (application.mes.slice(0, 4) === year) {
           months[Number(application.mes.slice(5, 7)) - 1].push(payment);
+          total += Number(application.monto);
         }
       }
     }
-    return { neighbor, months };
+    return { neighbor, months, total };
   });
 }
 
@@ -108,7 +111,8 @@ function renderHistoryOverview() {
   rows.replaceChildren();
   if (!historyOverviewPayments) return;
   const year = $('#history-overview-year').value;
-  for (const { neighbor, months } of overviewRows(year)) {
+  const overview = overviewRows(year);
+  for (const { neighbor, months } of overview) {
     const row = document.createElement('tr');
     const name = document.createElement('th');
     name.scope = 'row';
@@ -138,6 +142,8 @@ function renderHistoryOverview() {
   $('#history-overview-status').textContent = count
     ? `Pagos aplicados a ${year} para ${count} vecinos.`
     : 'No hay vecinos registrados.';
+  const total = overview.reduce((sum, item) => sum + item.total, 0);
+  $('#history-overview-total').textContent = `Monto recaudado aplicado a cuotas de ${year}: ${money.format(total)}.`;
   updateOverviewExportButton();
 }
 
@@ -149,6 +155,7 @@ async function loadHistoryOverview() {
   historyOverviewLoading = true;
   updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
+  $('#history-overview-total').textContent = '';
   $('#history-overview-status').textContent = 'Cargando historial general…';
   $('#history-overview-retry').hidden = true;
   const snapshot = [...neighbors];

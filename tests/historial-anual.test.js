@@ -85,11 +85,11 @@ test('la vista general muestra cada comprobante vigente y deja en blanco las fec
     snapshot: [{ id: 1, nombre: 'Vecino 1' }, { id: 2, nombre: 'Vecino 2', no_paga_cuota: true }],
     paymentsByNeighbor: new Map([
       ['1', [
-        { comprobante: '433', fecha: '2025-02-03', aplicaciones: [{ mes: '2025-01-01' }, { mes: '2025-02-01' }, { mes: '2024-01-01' }] },
-        { comprobante: '123', fecha: null, aplicaciones: [{ mes: '2025-01-01' }] },
-        { comprobante: 'anulado', fecha: '2025-01-01', anulado_en: '2025-03-01', aplicaciones: [{ mes: '2025-01-01' }] }
+        { comprobante: '433', fecha: '2025-02-03', aplicaciones: [{ mes: '2025-01-01', monto: 1000 }, { mes: '2025-02-01', monto: 1000 }, { mes: '2024-01-01', monto: 1200 }] },
+        { comprobante: '123', fecha: null, aplicaciones: [{ mes: '2025-01-01', monto: 500 }] },
+        { comprobante: 'anulado', fecha: '2025-01-01', anulado_en: '2025-03-01', aplicaciones: [{ mes: '2025-01-01', monto: 1000 }] }
       ]],
-      ['2', [{ comprobante: null, fecha: null, aplicaciones: [{ mes: '2025-12-01' }] }]]
+      ['2', [{ comprobante: null, fecha: null, aplicaciones: [{ mes: '2025-12-01', monto: 1000 }] }]]
     ])
   };
   runInContext('historyOverviewPayments = overview', app.context);
@@ -100,6 +100,7 @@ test('la vista general muestra cada comprobante vigente y deja en blanco las fec
   assert.deepEqual(exportRows[0].months[0].map(payment => payment.comprobante).join(','), '433,123');
   assert.equal(exportRows[0].months[2].length, 0);
   assert.equal(rows.length, 2);
+  assert.equal(app.document.querySelector('#history-overview-total').textContent, 'Monto recaudado aplicado a cuotas de 2025: $3.500.');
   assert.equal(rows[0].children.length, 13);
   assert.equal(rows[0].children[0].textContent, 'Vecino 1');
   assert.deepEqual(rows[0].children[1].children.map(entry => entry.children.map(item => item.textContent)), [
@@ -114,6 +115,12 @@ test('la vista general muestra cada comprobante vigente y deja en blanco las fec
   const updated = app.document.querySelector('#history-overview-rows').children;
   assert.equal(updated[0].children[1].children[0].children[0].textContent, '433');
   assert.equal(updated[0].children[2].children.length, 0);
+  assert.equal(app.document.querySelector('#history-overview-total').textContent, 'Monto recaudado aplicado a cuotas de 2024: $1.200.');
+  app.document.querySelector('#history-overview-year').value = '2023';
+  runInContext('renderHistoryOverview()', app.context);
+  assert.equal(app.document.querySelector('#history-overview-total').textContent, 'Monto recaudado aplicado a cuotas de 2023: $0.');
+  runInContext('clearHistoryOverview()', app.context);
+  assert.equal(app.document.querySelector('#history-overview-total').textContent, '');
 });
 
 test('la carga general limita consultas, ignora respuestas antiguas y permite reintentar', async () => {
