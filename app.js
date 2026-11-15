@@ -14,6 +14,8 @@ let loadVersion = 0;
 let editingNeighbor = null;
 let neighbors = [];
 let historyVersion = 0;
+let historyYearVersion = 0;
+let historyYearPayments = null;
 
 function showMessage(text, error = false) {
   message.textContent = text;
@@ -39,6 +41,13 @@ function setAuthenticated(authenticated) {
     $('#history-search').value = '';
     $('#history-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
     $('#history-status').textContent = 'Selecciona un vecino para ver sus pagos.';
+    historyYearVersion++;
+    historyYearPayments = null;
+    $('#history-year-search').value = '';
+    $('#history-year-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
+    $('#history-year-select').value = String(new Date().getFullYear());
+    $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
+    $('#history-year-months').replaceChildren();
     $('#payment-form').elements.vecino.replaceChildren();
     $('#year-info').textContent = '';
     $('#summary-neighbors').textContent = '—';
@@ -161,17 +170,82 @@ function editNeighbor(neighbor) {
   form.elements.nombre.focus();
 }
 
-function updateHistoryOptions(preserveSelection = false) {
-  const select = $('#history-neighbor');
+function updateHistoryOptions(preserveSelection = false, prefix = 'history') {
+  const select = $(`#${prefix}-neighbor`);
   const selected = preserveSelection ? select.value : '';
   const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-CL');
-  const search = normalize($('#history-search').value.trim());
+  const search = normalize($(`#${prefix}-search`).value.trim());
   const matching = neighbors.filter(neighbor => normalize(neighbor.nombre).includes(search) || String(neighbor.id) === selected);
   select.replaceChildren(new Option(matching.length ? 'Selecciona un vecino' : 'No hay vecinos que coincidan', ''));
   for (const neighbor of matching) {
     select.add(new Option(`${neighbor.nombre} · ${neighbor.rut}`, String(neighbor.id)));
   }
   select.value = matching.some(neighbor => String(neighbor.id) === selected) ? selected : '';
+}
+
+function renderHistoryYear() {
+  const container = $('#history-year-months');
+  container.replaceChildren();
+  if (!historyYearPayments) return;
+  const year = $('#history-year-select').value;
+  let total = 0;
+  let matches = 0;
+  for (let month = 1; month <= 12; month++) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    const entries = historyYearPayments.flatMap(payment => payment.aplicaciones
+      .filter(item => item.mes.slice(0, 7) === key)
+      .map(item => ({ payment, amount: Number(item.monto) })));
+    const paid = entries.reduce((sum, entry) => sum + (entry.payment.anulado_en ? 0 : entry.amount), 0);
+    total += paid;
+    matches += entries.length;
+    const card = document.createElement('article');
+    card.className = 'history-year-month';
+    const title = document.createElement('h3');
+    title.textContent = monthNames[month - 1];
+    const summary = document.createElement('p');
+    summary.textContent = entries.length ? `Aplicado vigente: ${money.format(paid)}` : 'Sin pagos registrados';
+    card.append(title, summary);
+    if (entries.length) {
+      const list = document.createElement('ul');
+      for (const { payment, amount } of entries) {
+        const item = document.createElement('li');
+        const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : 'Fecha desconocida';
+        item.textContent = `Comprobante: ${payment.comprobante || '—'} · ${money.format(amount)} · ${date}${payment.anulado_en ? ` · Anulado: ${payment.motivo_anulacion}` : ''}`;
+        if (payment.anulado_en) item.className = 'history-year-cancelled';
+        list.append(item);
+      }
+      card.append(list);
+    }
+    container.append(card);
+  }
+  const neighbor = neighbors.find(item => String(item.id) === $('#history-year-neighbor').value);
+  $('#history-year-status').textContent = matches
+    ? `Pagos de ${neighbor.nombre} aplicados a ${year}: ${money.format(total)} vigentes.`
+    : `No hay pagos aplicados a ${year} para ${neighbor.nombre}. Un mes sin pagos no implica necesariamente deuda.`;
+}
+
+async function loadHistoryYear() {
+  const selected = $('#history-year-neighbor').value;
+  const version = ++historyYearVersion;
+  const activeSession = session;
+  historyYearPayments = null;
+  $('#history-year-months').replaceChildren();
+  if (!selected || !activeSession) {
+    $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
+    return;
+  }
+  $('#history-year-status').textContent = 'Cargando pagos…';
+  try {
+    const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(selected) });
+    if (version !== historyYearVersion || session !== activeSession) return;
+    historyYearPayments = data;
+    renderHistoryYear();
+  } catch (error) {
+    if (version !== historyYearVersion || session !== activeSession) return;
+    $('#history-year-status').textContent = error.code === 'PGRST202'
+      ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
+      : `No se pudo cargar el historial: ${error.message}`;
+  }
 }
 
 async function loadHistory() {
@@ -237,6 +311,7 @@ function render(data) {
   const select = $('#payment-form').elements.vecino;
   const selected = select.value;
   const historySelected = $('#history-neighbor').value;
+  const historyYearSelected = $('#history-year-neighbor').value;
   select.replaceChildren(new Option('Selecciona un vecino', ''));
   neighbors = data.vecinos;
   const neighborsList = $('#neighbors-list');
@@ -262,6 +337,8 @@ function render(data) {
   select.value = [...select.options].some(option => option.value === selected) ? selected : '';
   updateHistoryOptions(true);
   if (historySelected && !$('#history-neighbor').value) loadHistory();
+  updateHistoryOptions(true, 'history-year');
+  if (historyYearSelected && !$('#history-year-neighbor').value) loadHistoryYear();
 
   const dues = $('#dues');
   dues.replaceChildren();
@@ -323,6 +400,7 @@ async function updateAfterSave(text) {
   try {
     await load();
     if ($('#history-neighbor').value) await loadHistory();
+    if ($('#history-year-neighbor').value) await loadHistoryYear();
     showMessage(text);
   } catch (error) {
     showMessage(`${text} No se pudo actualizar la pantalla: ${error.message}`, true);
@@ -362,6 +440,14 @@ $('#history-search').addEventListener('input', () => {
 $('#history-neighbor').addEventListener('change', () => {
   loadHistory();
 });
+$('#history-year-search').addEventListener('input', () => {
+  updateHistoryOptions(false, 'history-year');
+  loadHistoryYear();
+});
+$('#history-year-neighbor').addEventListener('change', () => {
+  loadHistoryYear();
+});
+$('#history-year-select').addEventListener('change', renderHistoryYear);
 
 $('#logout').addEventListener('click', async () => {
   const previous = session;
@@ -509,6 +595,10 @@ function changeYear(value) {
 yearInput.addEventListener('change', () => changeYear(yearInput.value));
 yearTableInput.addEventListener('change', () => changeYear(yearTableInput.value));
 const today = new Date();
+for (let year = 2100; year >= 2000; year--) {
+  $('#history-year-select').add(new Option(String(year), String(year)));
+}
+$('#history-year-select').value = String(today.getFullYear());
 yearInput.value = today.getFullYear();
 yearTableInput.value = today.getFullYear();
 $('#fee-form').elements.anio.value = today.getFullYear();

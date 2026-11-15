@@ -28,6 +28,7 @@
         <button type="button" class="menu-link" data-view="neighbors">Vecinos</button>
         <button type="button" class="menu-link" data-view="payments">Registrar pago</button>
         <button type="button" class="menu-link" data-view="history">Historial de pagos</button>
+        <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
         <button type="button" class="menu-link" data-view="dues">Cuotas</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
@@ -110,6 +111,19 @@
           <label>Seleccionar vecino<select id="history-neighbor"><option value="">Selecciona un vecino</option></select></label>
           <p id="history-status" aria-live="polite">Selecciona un vecino para ver sus pagos.</p>
           <div class="table-wrap"><table class="history-table"><thead><tr><th>Fecha</th><th>N.º comprobante</th><th>Cuota mes y año</th><th>Monto total</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="payments"></tbody></table></div>
+        </section>
+      </section>
+      <section id="view-history-year" class="view" hidden>
+        <section class="card">
+          <h2>Historial de pagos 2</h2>
+          <p>Consulta los pagos aplicados a cada mes del año. Los pagos anulados no se suman. Un mes sin pagos no implica necesariamente deuda.</p>
+          <div class="history-year-filters">
+            <label>Buscar vecino por nombre<input id="history-year-search" type="search" autocomplete="off" placeholder="Escribe un nombre"></label>
+            <label>Seleccionar vecino<select id="history-year-neighbor"><option value="">Selecciona un vecino</option></select></label>
+            <label>Año<select id="history-year-select"></select></label>
+          </div>
+          <p id="history-year-status" aria-live="polite">Selecciona un vecino para ver sus pagos.</p>
+          <div id="history-year-months" class="history-year-grid"></div>
         </section>
       </section>
       <section id="view-dues" class="view" hidden>
