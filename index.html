@@ -26,7 +26,8 @@
       <nav id="treasury-menu" aria-label="Menú de tesorería">
         <button type="button" class="menu-link active" data-view="dashboard" aria-current="page">Inicio</button>
         <button type="button" class="menu-link" data-view="neighbors">Vecinos</button>
-        <button type="button" class="menu-link" data-view="payments">Pagos</button>
+        <button type="button" class="menu-link" data-view="payments">Registrar pago</button>
+        <button type="button" class="menu-link" data-view="history">Historial de pagos</button>
         <button type="button" class="menu-link" data-view="dues">Cuotas</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
@@ -100,6 +101,8 @@
           </form>
           <p>Se aplica a las cuotas pendientes más antiguas. Configura los años necesarios antes de aceptar pagos adelantados.</p>
         </section>
+      </section>
+      <section id="view-history" class="view" hidden>
         <section class="card">
           <h2>Historial de pagos</h2>
           <p>Consulta todos los pagos de un vecino, incluidos los anulados.</p>

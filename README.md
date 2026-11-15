@@ -99,7 +99,8 @@ a todos.
 - Al anular un pago se conserva su historial y se liberan sus aplicaciones;
   las aplicaciones de otros pagos no se reasignan. El siguiente pago cubre
   primero las cuotas que vuelvan a quedar pendientes.
-- El historial de tesorería muestra todos los pagos del vecino seleccionado,
+- En tesorería, **Registrar pago** e **Historial de pagos** son opciones
+  separadas del menú. El historial muestra todos los pagos del vecino seleccionado,
   incluidos los anulados, con independencia del año seleccionado en el tablero.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
