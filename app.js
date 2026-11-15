@@ -64,6 +64,9 @@ function setAuthenticated(authenticated) {
     $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
     $('#current-fee').textContent = '';
+    $('#fee-list').replaceChildren();
+    $('#fee-list-table').hidden = true;
+    $('#fee-list-status').textContent = '';
     $('#summary-neighbors').textContent = '—';
     $('#summary-paid').textContent = '—';
     $('#summary-debt').textContent = '—';
@@ -502,6 +505,19 @@ function renderCurrentFee(fees) {
     : `No se ha configurado la cuota mensual para ${year}.`;
 }
 
+function renderFeeList(fees) {
+  const list = $('#fee-list');
+  list.replaceChildren();
+  for (const fee of [...fees].sort((a, b) => Number(b.anio) - Number(a.anio))) {
+    const row = document.createElement('tr');
+    cell(row, String(fee.anio));
+    cell(row, money.format(fee.monto));
+    list.append(row);
+  }
+  $('#fee-list-table').hidden = !fees.length;
+  $('#fee-list-status').textContent = fees.length ? '' : 'No hay valores de cuota registrados.';
+}
+
 function render(data) {
   const select = $('#payment-form').elements.vecino;
   const selected = select.value;
@@ -546,6 +562,7 @@ function render(data) {
     else unconfigured = true;
   }
   renderCurrentFee(data.aranceles);
+  renderFeeList(data.aranceles);
   $('#summary-neighbors').textContent = String(data.vecinos.length);
   $('#summary-paid').textContent = money.format(paidTotal);
   $('#summary-debt').textContent = money.format(total);
@@ -593,6 +610,7 @@ async function updateAfterSave(text) {
     if (historyReceiptQuery) $('#history-status').textContent = `No se pudo actualizar la búsqueda: ${error.message}`;
     if ($('#current-fee').textContent === 'Actualizando valor de la cuota…') {
       $('#current-fee').textContent = 'No se pudo actualizar el valor de la cuota.';
+      $('#fee-list-status').textContent = 'No se pudo actualizar el listado de valores.';
     }
     showMessage(`${text} No se pudo actualizar la pantalla: ${error.message}`, true);
   }
@@ -779,6 +797,9 @@ $('#fee-form').addEventListener('submit', event => {
     await rpc('cuotas_guardar_arancel', { p_anio: Number(form.elements.anio.value), p_monto: Number(form.elements.monto.value) });
     yearInput.value = form.elements.anio.value;
     $('#current-fee').textContent = 'Actualizando valor de la cuota…';
+    $('#fee-list').replaceChildren();
+    $('#fee-list-table').hidden = true;
+    $('#fee-list-status').textContent = 'Actualizando valores de cuota…';
     await updateAfterSave('Monto anual guardado.');
   });
 });

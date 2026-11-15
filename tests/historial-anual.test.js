@@ -59,6 +59,24 @@ test('muestra la cuota del año actual independientemente del año del tablero',
   assert.equal(app.document.querySelector('#current-fee').textContent, `No se ha configurado la cuota mensual para ${currentYear}.`);
 });
 
+test('lista todos los valores por año y actualiza la lista cuando cambian', () => {
+  const app = setup([]);
+  app.context.fees = [{ anio: 2020, monto: 1000 }, { anio: 2025, monto: 1500 }, { anio: 2023, monto: 1200 }];
+  runInContext('renderFeeList(fees)', app.context);
+  const list = app.document.querySelector('#fee-list');
+  assert.deepEqual(list.children.map(row => row.children.map(item => item.textContent)), [
+    ['2025', '$1.500'], ['2023', '$1.200'], ['2020', '$1.000']
+  ]);
+  assert.equal(app.document.querySelector('#fee-list-table').hidden, false);
+  app.context.fees = [{ anio: 2023, monto: 2000 }];
+  runInContext('renderFeeList(fees)', app.context);
+  assert.deepEqual(list.children.map(row => row.children.map(item => item.textContent)), [['2023', '$2.000']]);
+  runInContext('renderFeeList([])', app.context);
+  assert.equal(list.children.length, 0);
+  assert.equal(app.document.querySelector('#fee-list-table').hidden, true);
+  assert.equal(app.document.querySelector('#fee-list-status').textContent, 'No hay valores de cuota registrados.');
+});
+
 test('agrupa meses consecutivos y suma solo aplicaciones vigentes del año', () => {
   const fullYear = Array.from({ length: 12 }, (_, i) => ({ mes: `2024-${String(i + 1).padStart(2, '0')}-01`, monto: 1000 }));
   const app = setup([

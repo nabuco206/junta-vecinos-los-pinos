@@ -164,6 +164,14 @@
         <section class="card">
           <h2>Valor Cuota</h2>
           <p id="current-fee" class="current-fee" aria-live="polite"></p>
+          <h3>Valores de cuota registrados</h3>
+          <p id="fee-list-status" aria-live="polite"></p>
+          <div class="table-wrap">
+            <table id="fee-list-table" hidden>
+              <thead><tr><th scope="col">Año</th><th scope="col">Cuota mensual</th></tr></thead>
+              <tbody id="fee-list"></tbody>
+            </table>
+          </div>
           <h3>Configurar cuota mensual por año</h3>
           <form id="fee-form">
             <label>Año<input name="anio" type="number" min="2000" max="2100" required></label>
