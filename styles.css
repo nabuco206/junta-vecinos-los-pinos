@@ -46,6 +46,7 @@ nav a { color: white; }
 .dues-month strong { font-size: .68rem; font-weight: 650; text-transform: uppercase; }
 .dues-month span { font-size: .78rem; }
 .dues-month small { color: #566176; font-size: .68rem; }
+.dues-month .dues-receipts { max-width: 100%; overflow-wrap: anywhere; }
 .dues-month.overdue { border-color: #d99a9a; background: #fff2f2; color: #a42620; }
 .dues-month.overdue small { color: #a42620; }
 .dues-month.paid { border-color: #b7d7c1; background: #f3fbf5; color: #21643b; }

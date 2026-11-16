@@ -84,48 +84,59 @@ async function loadYear(year, expectedSession) {
 
   const dues = $('#dues');
   dues.replaceChildren();
-  let yearSection = null;
-  let monthGrid = null;
+  const duesByYear = new Map();
   for (const due of data.cuotas) {
     const year = due.mes.slice(0, 4);
-    if (!yearSection || yearSection.dataset.year !== year) {
-      yearSection = document.createElement('section');
-      yearSection.className = 'dues-year';
-      yearSection.dataset.year = year;
-      const heading = document.createElement('h3');
-      heading.textContent = year;
-      monthGrid = document.createElement('div');
-      monthGrid.className = 'dues-months';
-      yearSection.append(heading, monthGrid);
-      dues.append(yearSection);
+    if (!duesByYear.has(year)) duesByYear.set(year, []);
+    duesByYear.get(year).push(due);
+  }
+  for (const [year, yearDues] of [...duesByYear].reverse()) {
+    const yearSection = document.createElement('section');
+    yearSection.className = 'dues-year';
+    yearSection.dataset.year = year;
+    const heading = document.createElement('h3');
+    heading.textContent = year;
+    const monthGrid = document.createElement('div');
+    monthGrid.className = 'dues-months';
+    yearSection.append(heading, monthGrid);
+    dues.append(yearSection);
+
+    for (const due of yearDues) {
+      const month = document.createElement('article');
+      month.className = 'dues-month';
+      const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
+      const monthName = document.createElement('strong');
+      monthName.textContent = monthNames[Number(due.mes.slice(5, 7)) - 1];
+      month.append(monthName);
+      const comprobantes = Array.isArray(due.comprobantes) ? due.comprobantes.filter(Boolean) : [];
+      if (comprobantes.length) {
+        const receipt = document.createElement('small');
+        receipt.className = 'dues-receipts';
+        receipt.textContent = `N.º ${comprobantes.join(', ')}`;
+        month.append(receipt);
+      }
+      const amount = document.createElement('span');
+      const detail = document.createElement('small');
+      if (exento) {
+        amount.textContent = 'Exento';
+        detail.textContent = '';
+      } else if (balance === null) {
+        month.classList.add('unconfigured');
+        amount.textContent = 'Sin configurar';
+        detail.textContent = '';
+      } else if (balance > 0) {
+        month.classList.add('overdue');
+        amount.textContent = `Debe ${money.format(balance)}`;
+        detail.textContent = due.pagado > 0 ? `Abonado ${money.format(due.pagado)}` : 'Pendiente';
+      } else {
+        month.classList.add('paid');
+        amount.textContent = 'Pagada';
+        detail.textContent = money.format(due.pagado);
+      }
+      month.append(amount);
+      if (detail.textContent) month.append(detail);
+      monthGrid.append(month);
     }
-    const month = document.createElement('article');
-    month.className = 'dues-month';
-    const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
-    const monthName = document.createElement('strong');
-    monthName.textContent = monthNames[Number(due.mes.slice(5, 7)) - 1];
-    month.append(monthName);
-    const amount = document.createElement('span');
-    const detail = document.createElement('small');
-    if (exento) {
-      amount.textContent = 'Exento';
-      detail.textContent = '';
-    } else if (balance === null) {
-      month.classList.add('unconfigured');
-      amount.textContent = 'Sin configurar';
-      detail.textContent = '';
-    } else if (balance > 0) {
-      month.classList.add('overdue');
-      amount.textContent = `Debe ${money.format(balance)}`;
-      detail.textContent = due.pagado > 0 ? `Abonado ${money.format(due.pagado)}` : 'Pendiente';
-    } else {
-      month.classList.add('paid');
-      amount.textContent = 'Pagada';
-      detail.textContent = money.format(due.pagado);
-    }
-    month.append(amount);
-    if (detail.textContent) month.append(detail);
-    monthGrid.append(month);
   }
 
   const payments = $('#payments');

@@ -282,8 +282,8 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
     anio_inicio: 2024, anio_actual: 2025, mes_actual: '2025-03-01', vecino: { nombre: 'Vecino' },
     configuracion_completa: true, deuda_hasta_hoy: 500,
     cuotas: [
-      { mes: '2024-12-01', monto: 1000, pagado: 1000 },
-      { mes: '2025-01-01', monto: 1000, pagado: 500 },
+      { mes: '2024-12-01', monto: 1000, pagado: 1000, comprobantes: ['411'] },
+      { mes: '2025-01-01', monto: 1000, pagado: 500, comprobantes: ['433', '434'] },
       { mes: '2025-02-01', monto: 1000, pagado: 0 },
       { mes: '2025-03-01', monto: null, pagado: 0 }
     ],
@@ -299,14 +299,17 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
   assert.equal(rows[1].children[0].textContent, '04/03/2025');
   assert.equal(context.testData.pagos[0].fecha, null);
   const years = document.querySelector('#dues').children;
-  assert.deepEqual(years.map(year => year.dataset.year), ['2024', '2025']);
-  const months = years[1].children[1].children;
-  assert.equal(months[0].children[1].textContent, 'Debe $500');
-  assert.equal(months[0].children[2].textContent, 'Abonado $500');
+  assert.deepEqual(years.map(year => year.dataset.year), ['2025', '2024']);
+  const months = years[0].children[1].children;
+  assert.equal(months[0].children[1].textContent, 'N.º 433, 434');
+  assert.equal(months[0].children[2].textContent, 'Debe $500');
+  assert.equal(months[0].children[3].textContent, 'Abonado $500');
   assert.equal(months[0].className, 'dues-month overdue');
   assert.equal(months[1].children[1].textContent, 'Debe $1.000');
   assert.equal(months[1].className, 'dues-month overdue');
   assert.equal(months[2].children[1].textContent, 'Sin configurar');
   assert.equal(months[2].className, 'dues-month unconfigured');
-  assert.equal(years[0].children[1].children[0].children[1].textContent, 'Pagada');
+  const previousYearPaidMonth = years[1].children[1].children[0];
+  assert.equal(previousYearPaidMonth.children[1].textContent, 'N.º 411');
+  assert.equal(previousYearPaidMonth.children[2].textContent, 'Pagada');
 });

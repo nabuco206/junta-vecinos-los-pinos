@@ -131,7 +131,8 @@ begin
       select jsonb_agg(jsonb_build_object(
         'mes', m.mes::date,
         'monto', case when v_no_paga_cuota then 0 else a.monto end,
-        'pagado', coalesce(p.pagado, 0)
+        'pagado', coalesce(p.pagado, 0),
+        'comprobantes', coalesce(p.comprobantes, '[]'::jsonb)
       ) order by m.mes)
       from generate_series(
         v_inicio::timestamp,
@@ -141,7 +142,13 @@ begin
       left join cuotas_privado.aranceles a
         on a.anio = extract(year from m.mes)::integer
       left join lateral (
-        select sum(ap.monto) as pagado
+        select
+          sum(ap.monto) as pagado,
+          coalesce(
+            jsonb_agg(distinct pg.comprobante order by pg.comprobante)
+              filter (where pg.comprobante is not null),
+            '[]'::jsonb
+          ) as comprobantes
         from cuotas_privado.aplicaciones ap
         join cuotas_privado.pagos pg on pg.id = ap.pago_id
         where pg.vecino_id = v_vecino_id and pg.anulado_en is null
