@@ -134,11 +134,12 @@ begin
         'pagado', coalesce(p.pagado, 0)
       ) order by m.mes)
       from generate_series(
-        greatest(make_date(p_anio, 1, 1), v_inicio)::timestamp,
-        least(make_date(p_anio, 12, 1), v_mes_actual)::timestamp,
+        v_inicio::timestamp,
+        v_mes_actual::timestamp,
         interval '1 month'
       ) m(mes)
-      left join cuotas_privado.aranceles a on a.anio = p_anio
+      left join cuotas_privado.aranceles a
+        on a.anio = extract(year from m.mes)::integer
       left join lateral (
         select sum(ap.monto) as pagado
         from cuotas_privado.aplicaciones ap
@@ -146,8 +147,6 @@ begin
         where pg.vecino_id = v_vecino_id and pg.anulado_en is null
           and ap.mes = m.mes::date
       ) p on true
-      where p_anio >= extract(year from v_inicio)::integer
-        and p_anio <= v_anio_actual
     ), '[]'::jsonb),
     'pagos', coalesce((
       select jsonb_agg(jsonb_build_object(

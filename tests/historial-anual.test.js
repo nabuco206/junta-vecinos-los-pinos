@@ -10,7 +10,11 @@ class Element {
     this.value = value;
     this.textContent = text;
     this.elements = { anio: {}, fecha: {} };
-    this.classList = { toggle() {} };
+    this.className = '';
+    this.classList = {
+      add: name => { this.className = `${this.className} ${name}`.trim(); },
+      toggle() {}
+    };
   }
   addEventListener() {}
   setAttribute() {}
@@ -275,8 +279,14 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
   const context = createContext({ document, Option: Element });
   runInContext(readFileSync(new URL('../vecino.js', import.meta.url), 'utf8'), context);
   context.testData = {
-    anio_inicio: 2025, anio_actual: 2025, vecino: { nombre: 'Vecino' },
-    configuracion_completa: true, deuda_hasta_hoy: 0, cuotas: [],
+    anio_inicio: 2024, anio_actual: 2025, mes_actual: '2025-03-01', vecino: { nombre: 'Vecino' },
+    configuracion_completa: true, deuda_hasta_hoy: 500,
+    cuotas: [
+      { mes: '2024-12-01', monto: 1000, pagado: 1000 },
+      { mes: '2025-01-01', monto: 1000, pagado: 500 },
+      { mes: '2025-02-01', monto: 1000, pagado: 0 },
+      { mes: '2025-03-01', monto: null, pagado: 0 }
+    ],
     pagos: [
       { fecha: null, comprobante: '1', monto: 1000, aplicaciones: [] },
       { fecha: '2025-03-04', comprobante: '2', monto: 1000, aplicaciones: [] }
@@ -288,4 +298,15 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
   assert.equal(rows[0].children[0].textContent, '');
   assert.equal(rows[1].children[0].textContent, '04/03/2025');
   assert.equal(context.testData.pagos[0].fecha, null);
+  const years = document.querySelector('#dues').children;
+  assert.deepEqual(years.map(year => year.dataset.year), ['2024', '2025']);
+  const months = years[1].children[1].children;
+  assert.equal(months[0].children[1].textContent, 'Debe $500');
+  assert.equal(months[0].children[2].textContent, 'Abonado $500');
+  assert.equal(months[0].className, 'dues-month overdue');
+  assert.equal(months[1].children[1].textContent, 'Debe $1.000');
+  assert.equal(months[1].className, 'dues-month overdue');
+  assert.equal(months[2].children[1].textContent, 'Sin configurar');
+  assert.equal(months[2].className, 'dues-month unconfigured');
+  assert.equal(years[0].children[1].children[0].children[1].textContent, 'Pagada');
 });

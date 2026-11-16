@@ -84,21 +84,48 @@ async function loadYear(year, expectedSession) {
 
   const dues = $('#dues');
   dues.replaceChildren();
+  let yearSection = null;
+  let monthGrid = null;
   for (const due of data.cuotas) {
-    const row = document.createElement('tr');
-    const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
-    for (const value of [
-      monthNames[Number(due.mes.slice(5, 7)) - 1],
-      due.monto === null ? 'Sin configurar' : money.format(due.monto),
-      money.format(due.pagado),
-      balance === null ? '—' : money.format(balance),
-      exento ? 'Exento' : balance === null ? 'Sin configurar' : balance === 0 ? 'Pagada' : due.pagado > 0 ? 'Parcial' : 'Pendiente'
-    ]) {
-      const cell = document.createElement('td');
-      cell.textContent = value;
-      row.append(cell);
+    const year = due.mes.slice(0, 4);
+    if (!yearSection || yearSection.dataset.year !== year) {
+      yearSection = document.createElement('section');
+      yearSection.className = 'dues-year';
+      yearSection.dataset.year = year;
+      const heading = document.createElement('h3');
+      heading.textContent = year;
+      monthGrid = document.createElement('div');
+      monthGrid.className = 'dues-months';
+      yearSection.append(heading, monthGrid);
+      dues.append(yearSection);
     }
-    dues.append(row);
+    const month = document.createElement('article');
+    month.className = 'dues-month';
+    const balance = due.monto === null ? null : Math.max(due.monto - due.pagado, 0);
+    const monthName = document.createElement('strong');
+    monthName.textContent = monthNames[Number(due.mes.slice(5, 7)) - 1];
+    month.append(monthName);
+    const amount = document.createElement('span');
+    const detail = document.createElement('small');
+    if (exento) {
+      amount.textContent = 'Exento';
+      detail.textContent = '';
+    } else if (balance === null) {
+      month.classList.add('unconfigured');
+      amount.textContent = 'Sin configurar';
+      detail.textContent = '';
+    } else if (balance > 0) {
+      month.classList.add('overdue');
+      amount.textContent = `Debe ${money.format(balance)}`;
+      detail.textContent = due.pagado > 0 ? `Abonado ${money.format(due.pagado)}` : 'Pendiente';
+    } else {
+      month.classList.add('paid');
+      amount.textContent = 'Pagada';
+      detail.textContent = money.format(due.pagado);
+    }
+    month.append(amount);
+    if (detail.textContent) month.append(detail);
+    monthGrid.append(month);
   }
 
   const payments = $('#payments');
