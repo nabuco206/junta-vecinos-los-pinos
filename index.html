@@ -207,12 +207,27 @@
           <p>Un comprobante puede aparecer más de una vez si corresponde a distintos pagos. Se incluyen pagos anulados.</p>
           <p id="receipts-status" aria-live="polite"></p>
           <button type="button" id="receipts-refresh" class="outline">Actualizar listado</button>
+          <button type="button" id="receipts-duplicates" class="danger" disabled>Repetidos</button>
           <div class="table-wrap">
             <table>
               <thead><tr><th>Comprobante</th><th>Vecino</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead>
               <tbody id="receipts-list"></tbody>
             </table>
           </div>
+          <dialog id="receipts-duplicates-dialog" class="receipts-dialog" aria-labelledby="receipts-duplicates-title">
+            <div class="heading">
+              <h2 id="receipts-duplicates-title">Comprobantes repetidos</h2>
+              <form method="dialog"><button class="outline">Cerrar</button></form>
+            </div>
+            <p>Comprobantes asociados a distintos vecinos, incluidos los pagos anulados.</p>
+            <p id="receipts-duplicates-status" aria-live="polite"></p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Comprobante</th><th>Vecino</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead>
+                <tbody id="receipts-duplicates-list"></tbody>
+              </table>
+            </div>
+          </dialog>
         </section>
       </section>
       <section id="view-dues" class="view" hidden>

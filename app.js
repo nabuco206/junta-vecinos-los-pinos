@@ -211,6 +211,11 @@ function clearReceipts() {
   $('#receipts-list').replaceChildren();
   $('#receipts-status').textContent = '';
   $('#export-receipts').disabled = true;
+  $('#receipts-duplicates').disabled = true;
+  const dialog = $('#receipts-duplicates-dialog');
+  if (dialog.open) dialog.close();
+  $('#receipts-duplicates-list').replaceChildren();
+  $('#receipts-duplicates-status').textContent = '';
 }
 
 async function loadReceipts() {
@@ -228,7 +233,7 @@ async function loadReceipts() {
       for (const payment of histories.get(String(neighbor.id))) {
         if (!payment.comprobante || !payment.comprobante.trim()) continue;
         rows.push({
-          comprobante: payment.comprobante, vecino: neighbor.nombre,
+          comprobante: payment.comprobante, vecino: neighbor.nombre, vecinoId: String(neighbor.id),
           fecha: payment.fecha ? payment.fecha.split('-').reverse().join('/') : '',
           monto: Number(payment.monto), estado: payment.anulado_en ? 'Anulado' : 'Registrado'
         });
@@ -244,12 +249,36 @@ async function loadReceipts() {
     }
     $('#receipts-status').textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'pago con comprobante' : 'pagos con comprobante'}.` : 'No hay comprobantes registrados.';
     $('#export-receipts').disabled = !rows.length || receiptsExporting;
+    $('#receipts-duplicates').disabled = false;
   } catch (error) {
     if (version !== receiptsVersion || session !== activeSession) return;
     $('#receipts-status').textContent = error.code === 'PGRST202'
       ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
       : `No se pudieron cargar los comprobantes: ${error.message}`;
   }
+}
+
+function showDuplicateReceipts() {
+  if (!session || !receipts) return;
+  const owners = new Map();
+  for (const item of receipts) {
+    const key = item.comprobante.trim().toUpperCase();
+    if (!owners.has(key)) owners.set(key, new Set());
+    owners.get(key).add(item.vecinoId);
+  }
+  const repeated = receipts.filter(item => owners.get(item.comprobante.trim().toUpperCase()).size > 1);
+  const list = $('#receipts-duplicates-list');
+  list.replaceChildren();
+  for (const item of repeated) {
+    const row = document.createElement('tr');
+    for (const value of [item.comprobante, item.vecino, item.fecha, money.format(item.monto), item.estado]) cell(row, value);
+    list.append(row);
+  }
+  const count = [...owners.values()].filter(ownerIds => ownerIds.size > 1).length;
+  $('#receipts-duplicates-status').textContent = count
+    ? `${count} ${count === 1 ? 'número repetido' : 'números repetidos'} entre distintos vecinos.`
+    : 'No hay comprobantes repetidos entre distintos vecinos.';
+  $('#receipts-duplicates-dialog').showModal();
 }
 
 function resetPaymentEdit() {
@@ -906,6 +935,7 @@ $('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
 $('#receipts-refresh').addEventListener('click', loadReceipts);
+$('#receipts-duplicates').addEventListener('click', showDuplicateReceipts);
 $('#export-receipts').addEventListener('click', async () => {
   if (!session || !receipts?.length || receiptsExporting) return;
   const activeSession = session;

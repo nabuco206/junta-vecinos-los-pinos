@@ -21,6 +21,8 @@ class Element {
   add(child) { this.children.push(child); }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
+  showModal() { this.open = true; }
+  close() { this.open = false; }
 }
 
 test('el selector de Pagos por Año contiene exclusivamente los años 2014 a 2027', () => {
@@ -86,6 +88,36 @@ test('descarta el listado de comprobantes si se cierra la sesión durante la car
   await loading;
   assert.equal(app.document.querySelector('#receipts-list').children.length, 0);
   assert.equal(app.document.querySelector('#export-receipts').disabled, true);
+});
+
+test('el diálogo muestra solo números repetidos entre vecinos distintos, incluidos anulados', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Ana' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1
+    ? [{ comprobante: ' abc ', monto: 100 }, { comprobante: 'abc', monto: 200 }, { comprobante: '2', monto: 300 }, { comprobante: '2', monto: 400 }]
+    : [{ comprobante: 'ABC', monto: 500, anulado_en: '2025-01-01' }, { comprobante: '02', monto: 600 }];
+  runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
+  await runInContext('loadReceipts();', app.context);
+  runInContext('showDuplicateReceipts()', app.context);
+  const dialog = app.document.querySelector('#receipts-duplicates-dialog');
+  const rows = app.document.querySelector('#receipts-duplicates-list').children;
+  assert.equal(dialog.open, true);
+  assert.deepEqual(rows.map(row => row.children[0].textContent).sort(), [' abc ', 'ABC', 'abc'].sort());
+  assert.ok(rows.some(row => row.children[4].textContent === 'Anulado'));
+  assert.match(app.document.querySelector('#receipts-duplicates-status').textContent, /^1 número repetido/);
+  runInContext('clearReceipts()', app.context);
+  assert.equal(dialog.open, false);
+  assert.equal(app.document.querySelector('#receipts-duplicates-list').children.length, 0);
+});
+
+test('el diálogo informa cuando no hay comprobantes repetidos', async () => {
+  const app = setup([]);
+  app.context.mockRpc = async () => [{ comprobante: '10', monto: 100 }];
+  runInContext('session = {}; rpc = mockRpc', app.context);
+  await runInContext('loadReceipts()', app.context);
+  runInContext('showDuplicateReceipts()', app.context);
+  assert.match(app.document.querySelector('#receipts-duplicates-status').textContent, /No hay comprobantes repetidos/);
+  assert.equal(app.document.querySelector('#receipts-duplicates-list').children.length, 0);
 });
 
 function setup(payments, year = '2024') {

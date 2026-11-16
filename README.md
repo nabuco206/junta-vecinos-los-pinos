@@ -106,6 +106,8 @@ a todos.
   no existe un monto para el año actual, se informa en pantalla.
 - **Comprobantes** lista los pagos con número de comprobante, incluidos los
   anulados y los números repetidos, y permite descargar el listado en Excel.
+  El botón **Repetidos** muestra los números asociados a distintos vecinos,
+  considerando también pagos anulados.
 - Si la cuota mensual fue siempre de $1.000, ejecuta una vez
   `supabase/cuota_unica_1000.sql` después de registrar vecinos. Completa con
   ese monto los años faltantes desde el primer inicio de cobro hasta el año
