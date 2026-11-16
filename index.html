@@ -210,10 +210,21 @@
           <button type="button" id="receipts-duplicates" class="danger" disabled>Repetidos</button>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Comprobante</th><th>Vecino</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Comprobante</th><th>Vecino</th><th>Fecha</th><th>Monto</th><th>Estado</th><th>Acción</th></tr></thead>
               <tbody id="receipts-list"></tbody>
             </table>
           </div>
+          <dialog id="receipt-date-dialog" class="receipts-dialog" aria-labelledby="receipt-date-title">
+            <h2 id="receipt-date-title">Ingresar fecha de pago</h2>
+            <p id="receipt-date-description"></p>
+            <p>Solo se cambiará la fecha; el monto y los meses aplicados se conservarán.</p>
+            <form id="receipt-date-form">
+              <label>Fecha de pago<input name="fecha" type="date" required></label>
+              <p id="receipt-date-error" class="error" role="alert" hidden></p>
+              <button type="submit">Guardar fecha</button>
+              <button type="button" id="receipt-date-cancel" class="outline">Cancelar</button>
+            </form>
+          </dialog>
           <dialog id="receipts-duplicates-dialog" class="receipts-dialog" aria-labelledby="receipts-duplicates-title">
             <div class="heading">
               <h2 id="receipts-duplicates-title">Comprobantes repetidos</h2>

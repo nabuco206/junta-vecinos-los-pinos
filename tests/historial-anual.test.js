@@ -63,18 +63,68 @@ test('lista comprobantes de todos los vecinos, incluyendo repetidos y anulados',
   runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
   await runInContext('loadReceipts()', app.context);
   const rows = app.document.querySelector('#receipts-list').children;
-  assert.deepEqual(rows.map(row => row.children.map(item => item.textContent)), [
+  assert.deepEqual(rows.map(row => row.children.slice(0, 5).map(item => item.textContent)), [
     ['2', 'Luis', '04/03/2025', '$500', 'Anulado'],
     ['406', 'Ana', '', '$1.000', 'Registrado'],
     ['406', 'Luis', '', '$700', 'Registrado']
   ]);
   assert.equal(app.document.querySelector('#export-receipts').disabled, false);
+  assert.equal(rows[0].children[5].children.length, 0);
+  assert.equal(rows[1].children[5].children[0].textContent, 'Ingresar fecha');
   app.context.mockRpc = async () => { throw new Error('Conexión perdida'); };
   runInContext('rpc = mockRpc', app.context);
   await runInContext('loadReceipts()', app.context);
   assert.equal(app.document.querySelector('#receipts-list').children.length, 0);
   assert.match(app.document.querySelector('#receipts-status').textContent, /Conexión perdida/);
   assert.equal(app.document.querySelector('#export-receipts').disabled, true);
+});
+
+test('guarda la fecha de un comprobante sin alterar el monto ni las aplicaciones', async () => {
+  const app = setup([]);
+  const item = {
+    comprobante: '406', vecino: 'Ana', pago: {
+      id: 8, fecha: null, monto: 1000, aplicaciones: [{ mes: '2018-01-01', monto: 500 }]
+    }
+  };
+  app.context.item = item;
+  app.context.calls = [];
+  app.context.mockRpc = async (name, args) => { app.context.calls.push({ name, args }); };
+  app.context.mockUpdate = async text => { app.context.updated = text; };
+  const form = app.document.querySelector('#receipt-date-form');
+  const submit = new Element();
+  form.querySelector = () => submit;
+  form.elements.fecha = { value: '' };
+  runInContext('session = {}; rpc = mockRpc; updateAfterSave = mockUpdate; openReceiptDate(item)', app.context);
+  form.elements.fecha.value = '2024-06-03';
+  await runInContext('saveReceiptDate(document.querySelector("#receipt-date-form"))', app.context);
+  assert.equal(app.context.calls.length, 1);
+  const { name, args } = app.context.calls[0];
+  assert.equal(name, 'cuotas_editar_pago');
+  assert.equal(args.p_pago, 8);
+  assert.equal(args.p_fecha, '2024-06-03');
+  assert.equal(args.p_monto, 1000);
+  assert.equal(args.p_original.fecha, null);
+  assert.equal(args.p_original.monto, 1000);
+  assert.deepEqual(Array.from(args.p_aplicaciones, a => [a.mes, a.monto]), [['2018-01-01', 500]]);
+  assert.deepEqual(Array.from(args.p_original.aplicaciones, a => [a.mes, a.monto]), [['2018-01-01', 500]]);
+  assert.equal(app.context.updated, 'Fecha del pago guardada.');
+  assert.equal(app.document.querySelector('#receipt-date-dialog').open, false);
+});
+
+test('muestra errores de edición en el diálogo y conserva la fecha ingresada', async () => {
+  const app = setup([]);
+  app.context.item = { comprobante: '1', vecino: 'Ana', pago: { id: 1, fecha: null, monto: 1000, aplicaciones: [] } };
+  app.context.mockRpc = async () => { throw Object.assign(new Error('No existe'), { code: 'PGRST202' }); };
+  const form = app.document.querySelector('#receipt-date-form');
+  form.elements.fecha = { value: '' };
+  form.querySelector = () => new Element();
+  runInContext('session = {}; rpc = mockRpc; openReceiptDate(item)', app.context);
+  form.elements.fecha.value = '2024-06-03';
+  await runInContext('saveReceiptDate(document.querySelector("#receipt-date-form"))', app.context);
+  assert.equal(form.elements.fecha.value, '2024-06-03');
+  assert.equal(app.document.querySelector('#receipt-date-dialog').open, true);
+  assert.match(app.document.querySelector('#receipt-date-error').textContent, /editar_pago.sql/);
+  assert.equal(app.document.querySelector('#receipt-date-error').hidden, false);
 });
 
 test('descarta el listado de comprobantes si se cierra la sesión durante la carga', async () => {

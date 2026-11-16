@@ -26,6 +26,7 @@ button.excel:hover { background: #185b37; }
 button.danger { background: #a42727; min-height: 34px; }
 .receipts-dialog { width: min(900px, calc(100% - 32px)); max-height: 85vh; border: 1px solid #e1e7f0; border-radius: 12px; padding: 20px; }
 .receipts-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+#receipt-date-error { color: #a42620; }
 a { color: #174bbd; }
 nav { display: flex; align-items: center; gap: 18px; }
 nav a { color: white; }

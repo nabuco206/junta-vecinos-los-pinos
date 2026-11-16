@@ -24,6 +24,8 @@ let historyOverviewExporting = false;
 let receiptsVersion = 0;
 let receipts = null;
 let receiptsExporting = false;
+let editingReceiptDate = null;
+let savingReceiptDate = false;
 let paymentEditVersion = 0;
 let paymentEditQuery = '';
 let editingPayment = null;
@@ -214,6 +216,9 @@ function clearReceipts() {
   $('#receipts-duplicates').disabled = true;
   const dialog = $('#receipts-duplicates-dialog');
   if (dialog.open) dialog.close();
+  const dateDialog = $('#receipt-date-dialog');
+  if (dateDialog.open) dateDialog.close();
+  editingReceiptDate = null;
   $('#receipts-duplicates-list').replaceChildren();
   $('#receipts-duplicates-status').textContent = '';
 }
@@ -235,7 +240,8 @@ async function loadReceipts() {
         rows.push({
           comprobante: payment.comprobante, vecino: neighbor.nombre, vecinoId: String(neighbor.id),
           fecha: payment.fecha ? payment.fecha.split('-').reverse().join('/') : '',
-          monto: Number(payment.monto), estado: payment.anulado_en ? 'Anulado' : 'Registrado'
+          monto: Number(payment.monto), estado: payment.anulado_en ? 'Anulado' : 'Registrado',
+          pago: payment
         });
       }
     }
@@ -245,6 +251,16 @@ async function loadReceipts() {
     for (const item of rows) {
       const row = document.createElement('tr');
       for (const value of [item.comprobante, item.vecino, item.fecha, money.format(item.monto), item.estado]) cell(row, value);
+      const action = cell(row, '');
+      if (!item.pago.anulado_en) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'outline';
+        button.textContent = item.pago.fecha ? 'Modificar fecha' : 'Ingresar fecha';
+        button.setAttribute('aria-label', `${button.textContent} del comprobante ${item.comprobante} de ${item.vecino}, pago ${item.pago.id}`);
+        button.addEventListener('click', () => openReceiptDate(item));
+        action.append(button);
+      }
       $('#receipts-list').append(row);
     }
     $('#receipts-status').textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'pago con comprobante' : 'pagos con comprobante'}.` : 'No hay comprobantes registrados.';
@@ -255,6 +271,54 @@ async function loadReceipts() {
     $('#receipts-status').textContent = error.code === 'PGRST202'
       ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
       : `No se pudieron cargar los comprobantes: ${error.message}`;
+  }
+}
+
+function openReceiptDate(item) {
+  if (!session || savingReceiptDate) return;
+  editingReceiptDate = item;
+  $('#receipt-date-description').textContent = `Comprobante ${item.comprobante} · ${item.vecino} · Pago #${item.pago.id}`;
+  $('#receipt-date-form').elements.fecha.value = item.pago.fecha || '';
+  $('#receipt-date-error').hidden = true;
+  $('#receipt-date-dialog').showModal();
+}
+
+async function saveReceiptDate(form) {
+  const item = editingReceiptDate;
+  const activeSession = session;
+  if (!item || !activeSession || savingReceiptDate) return;
+  const payment = item.pago;
+  const applications = payment.aplicaciones.map(application => ({ mes: application.mes, monto: Number(application.monto) }));
+  const original = { fecha: payment.fecha, monto: Number(payment.monto), aplicaciones: applications };
+  const submit = form.querySelector('button[type="submit"]');
+  const cancel = $('#receipt-date-cancel');
+  savingReceiptDate = true;
+  submit.disabled = true;
+  cancel.disabled = true;
+  $('#receipt-date-error').hidden = true;
+  try {
+    try {
+      await rpc('cuotas_editar_pago', {
+        p_pago: Number(payment.id), p_fecha: form.elements.fecha.value,
+        p_monto: original.monto, p_aplicaciones: applications, p_original: original
+      });
+    } catch (error) {
+      if (error.code === 'PGRST202') throw new Error('Para modificar pagos, ejecuta supabase/editar_pago.sql en Supabase.');
+      throw error;
+    }
+    if (session !== activeSession) return;
+    if ($('#receipt-date-dialog').open) $('#receipt-date-dialog').close();
+    editingReceiptDate = null;
+    await updateAfterSave('Fecha del pago guardada.');
+  } catch (error) {
+    if (session === activeSession && editingReceiptDate === item) {
+      $('#receipt-date-error').textContent = error.message;
+      $('#receipt-date-error').hidden = false;
+    }
+  } finally {
+    savingReceiptDate = false;
+    submit.disabled = false;
+    cancel.disabled = false;
   }
 }
 
@@ -936,6 +1000,15 @@ $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
 $('#receipts-refresh').addEventListener('click', loadReceipts);
 $('#receipts-duplicates').addEventListener('click', showDuplicateReceipts);
+$('#receipt-date-form').addEventListener('submit', event => {
+  event.preventDefault();
+  saveReceiptDate(event.currentTarget);
+});
+$('#receipt-date-cancel').addEventListener('click', () => $('#receipt-date-dialog').close());
+$('#receipt-date-dialog').addEventListener('cancel', event => {
+  if (savingReceiptDate) event.preventDefault();
+});
+$('#receipt-date-dialog').addEventListener('close', () => { editingReceiptDate = null; });
 $('#export-receipts').addEventListener('click', async () => {
   if (!session || !receipts?.length || receiptsExporting) return;
   const activeSession = session;

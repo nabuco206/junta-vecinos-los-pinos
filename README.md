@@ -108,6 +108,9 @@ a todos.
   anulados y los números repetidos, y permite descargar el listado en Excel.
   El botón **Repetidos** muestra los números asociados a distintos vecinos,
   considerando también pagos anulados.
+- Desde **Comprobantes** se puede ingresar o corregir la fecha de un pago
+  vigente sin cambiar sus montos ni sus meses aplicados. Requiere
+  `supabase/editar_pago.sql`; los pagos anulados no se pueden modificar.
 - Si la cuota mensual fue siempre de $1.000, ejecuta una vez
   `supabase/cuota_unica_1000.sql` después de registrar vecinos. Completa con
   ese monto los años faltantes desde el primer inicio de cobro hasta el año
