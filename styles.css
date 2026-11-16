@@ -2,6 +2,8 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 header { background: #173c70; color: white; padding: 18px max(24px, calc((100% - 1300px)/2)); display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+.neighbor-header { background: #21643b; }
+.neighbor-header button.secondary { color: #21643b; }
 h1 { margin: 0; font-size: 1.5rem; } header p { margin: 4px 0 0; }
 main { max-width: 1348px; margin: auto; padding: 24px; }
 h2 { font-size: 1.1rem; margin: 0 0 16px; }
