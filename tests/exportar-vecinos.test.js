@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { crearArchivo, crearArchivoPagosPorAnio } from '../src/exportar-vecinos.js';
+import { crearArchivo, crearArchivoPagosPorAnio, crearArchivoComprobantes } from '../src/exportar-vecinos.js';
 
 async function leerArchivo(vecinos) {
   const libro = new ExcelJS.Workbook();
@@ -27,6 +27,19 @@ test('genera encabezados aun sin vecinos', async () => {
   const hoja = await leerArchivo([]);
   assert.equal(hoja.rowCount, 1);
   assert.equal(hoja.getCell('A1').value, 'ID');
+});
+
+test('exporta comprobantes repetidos como texto y conserva fecha vacía y estado', async () => {
+  const libro = new ExcelJS.Workbook();
+  await libro.xlsx.load(await crearArchivoComprobantes([
+    { comprobante: '00406', vecino: '=Vecino', fecha: '', monto: 1000, estado: 'Registrado' },
+    { comprobante: '00406', vecino: 'Otro', fecha: '03/02/2025', monto: 500, estado: 'Anulado' }
+  ]));
+  const hoja = libro.getWorksheet('Comprobantes');
+  assert.deepEqual(hoja.getRow(1).values.slice(1), ['Comprobante', 'Vecino', 'Fecha', 'Monto', 'Estado']);
+  assert.deepEqual(hoja.getRow(2).values.slice(1), ['00406', '=Vecino', '', 1000, 'Registrado']);
+  assert.equal(hoja.getCell('B2').formula, undefined);
+  assert.deepEqual(hoja.getRow(3).values.slice(1), ['00406', 'Otro', '03/02/2025', 500, 'Anulado']);
 });
 
 test('exporta el año y los doce meses con comprobantes y fechas como texto', async () => {

@@ -104,6 +104,8 @@ a todos.
 - **Valor Cuota** muestra el monto configurado para el año actual y la lista
   de valores registrados por año; permite configurar cuotas de otros años. Si
   no existe un monto para el año actual, se informa en pantalla.
+- **Comprobantes** lista los pagos con número de comprobante, incluidos los
+  anulados y los números repetidos, y permite descargar el listado en Excel.
 - Si la cuota mensual fue siempre de $1.000, ejecuta una vez
   `supabase/cuota_unica_1000.sql` después de registrar vecinos. Completa con
   ese monto los años faltantes desde el primer inicio de cobro hasta el año

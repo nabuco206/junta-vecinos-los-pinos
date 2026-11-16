@@ -21,6 +21,9 @@ let historyOverviewVersion = 0;
 let historyOverviewPayments = null;
 let historyOverviewLoading = false;
 let historyOverviewExporting = false;
+let receiptsVersion = 0;
+let receipts = null;
+let receiptsExporting = false;
 let paymentEditVersion = 0;
 let paymentEditQuery = '';
 let editingPayment = null;
@@ -65,6 +68,7 @@ function setAuthenticated(authenticated) {
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     $('#history-year-months').replaceChildren();
     clearHistoryOverview();
+    clearReceipts();
     $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
     paymentEditVersion++;
@@ -199,6 +203,53 @@ async function fetchNeighborHistories(snapshot, isCurrent) {
   }
   await Promise.all(Array.from({ length: Math.min(6, snapshot.length) }, worker));
   return payments;
+}
+
+function clearReceipts() {
+  receiptsVersion++;
+  receipts = null;
+  $('#receipts-list').replaceChildren();
+  $('#receipts-status').textContent = '';
+  $('#export-receipts').disabled = true;
+}
+
+async function loadReceipts() {
+  const activeSession = session;
+  if (!activeSession) return;
+  clearReceipts();
+  const version = receiptsVersion;
+  $('#receipts-status').textContent = 'Cargando comprobantes…';
+  const snapshot = [...neighbors];
+  try {
+    const histories = await fetchNeighborHistories(snapshot, () => version === receiptsVersion && session === activeSession);
+    if (version !== receiptsVersion || session !== activeSession) return;
+    const rows = [];
+    for (const neighbor of snapshot) {
+      for (const payment of histories.get(String(neighbor.id))) {
+        if (!payment.comprobante || !payment.comprobante.trim()) continue;
+        rows.push({
+          comprobante: payment.comprobante, vecino: neighbor.nombre,
+          fecha: payment.fecha ? payment.fecha.split('-').reverse().join('/') : '',
+          monto: Number(payment.monto), estado: payment.anulado_en ? 'Anulado' : 'Registrado'
+        });
+      }
+    }
+    const collator = new Intl.Collator('es-CL', { numeric: true, sensitivity: 'base' });
+    rows.sort((a, b) => collator.compare(a.comprobante, b.comprobante) || collator.compare(a.vecino, b.vecino));
+    receipts = rows;
+    for (const item of rows) {
+      const row = document.createElement('tr');
+      for (const value of [item.comprobante, item.vecino, item.fecha, money.format(item.monto), item.estado]) cell(row, value);
+      $('#receipts-list').append(row);
+    }
+    $('#receipts-status').textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'pago con comprobante' : 'pagos con comprobante'}.` : 'No hay comprobantes registrados.';
+    $('#export-receipts').disabled = !rows.length || receiptsExporting;
+  } catch (error) {
+    if (version !== receiptsVersion || session !== activeSession) return;
+    $('#receipts-status').textContent = error.code === 'PGRST202'
+      ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
+      : `No se pudieron cargar los comprobantes: ${error.message}`;
+  }
 }
 
 function resetPaymentEdit() {
@@ -761,6 +812,7 @@ async function updateAfterSave(text) {
     $('#history-status').textContent = 'Actualizando resultados…';
   }
   clearHistoryOverview();
+  clearReceipts();
   try {
     await load();
     clearHistoryOverview();
@@ -768,6 +820,7 @@ async function updateAfterSave(text) {
     else if ($('#history-neighbor').value) await loadHistory();
     if ($('#history-year-neighbor').value) await loadHistoryYear();
     if (!$('#view-history-overview').hidden) await loadHistoryOverview();
+    if (!$('#view-receipts').hidden) await loadReceipts();
     if (paymentEditQuery) await searchPaymentEdit();
     showMessage(text);
   } catch (error) {
@@ -807,6 +860,7 @@ $('#treasury-menu').addEventListener('click', event => {
   if (button) {
     showView(button.dataset.view);
     if (button.dataset.view === 'history-overview' && !historyOverviewPayments && !historyOverviewLoading) loadHistoryOverview();
+    if (button.dataset.view === 'receipts') loadReceipts();
   }
 });
 
@@ -851,6 +905,33 @@ $('#history-year-neighbor').addEventListener('change', () => {
 $('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
+$('#receipts-refresh').addEventListener('click', loadReceipts);
+$('#export-receipts').addEventListener('click', async () => {
+  if (!session || !receipts?.length || receiptsExporting) return;
+  const activeSession = session;
+  const currentReceipts = receipts;
+  const version = receiptsVersion;
+  receiptsExporting = true;
+  $('#export-receipts').disabled = true;
+  message.hidden = true;
+  try {
+    const buffer = await ExportarVecinos.crearArchivoComprobantes(currentReceipts);
+    if (session !== activeSession || version !== receiptsVersion || receipts !== currentReceipts) {
+      throw new Error('La sesión o los datos cambiaron. Vuelve a intentar la descarga.');
+    }
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'comprobantes.xlsx';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    if (session === activeSession) showMessage(`No se pudo descargar el Excel: ${error.message}`, true);
+  } finally {
+    receiptsExporting = false;
+    $('#export-receipts').disabled = !receipts?.length;
+  }
+});
 $('#export-history-overview').addEventListener('click', async () => {
   if (!session || !historyOverviewPayments || historyOverviewExporting) return;
   const activeSession = session;

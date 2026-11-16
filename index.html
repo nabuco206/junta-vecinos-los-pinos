@@ -30,6 +30,7 @@
         <button type="button" class="menu-link" data-view="history">Pagos Por Vecino</button>
         <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
         <button type="button" class="menu-link" data-view="history-overview">Pagos por Año</button>
+        <button type="button" class="menu-link" data-view="receipts">Comprobantes</button>
         <button type="button" class="menu-link" data-view="dues">Valor Cuota</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
@@ -188,6 +189,28 @@
             <table class="history-overview-table">
               <thead><tr><th scope="col">Vecino</th><th scope="col" abbr="Enero">Ene</th><th scope="col" abbr="Febrero">Feb</th><th scope="col" abbr="Marzo">Mar</th><th scope="col" abbr="Abril">Abr</th><th scope="col" abbr="Mayo">May</th><th scope="col" abbr="Junio">Jun</th><th scope="col" abbr="Julio">Jul</th><th scope="col" abbr="Agosto">Ago</th><th scope="col" abbr="Septiembre">Sep</th><th scope="col" abbr="Octubre">Oct</th><th scope="col" abbr="Noviembre">Nov</th><th scope="col" abbr="Diciembre">Dic</th></tr></thead>
               <tbody id="history-overview-rows"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section id="view-receipts" class="view" hidden>
+        <section class="card">
+          <div class="heading">
+            <h2>Comprobantes</h2>
+            <button type="button" id="export-receipts" class="excel" disabled>
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/>
+              </svg>
+              Descargar Excel
+            </button>
+          </div>
+          <p>Un comprobante puede aparecer más de una vez si corresponde a distintos pagos. Se incluyen pagos anulados.</p>
+          <p id="receipts-status" aria-live="polite"></p>
+          <button type="button" id="receipts-refresh" class="outline">Actualizar listado</button>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Comprobante</th><th>Vecino</th><th>Fecha</th><th>Monto</th><th>Estado</th></tr></thead>
+              <tbody id="receipts-list"></tbody>
             </table>
           </div>
         </section>

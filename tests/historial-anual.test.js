@@ -52,6 +52,42 @@ test('ordena vecinos alfabéticamente y números de socio en orden natural', () 
   );
 });
 
+test('lista comprobantes de todos los vecinos, incluyendo repetidos y anulados', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Luis' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1
+    ? [{ comprobante: '406', fecha: null, monto: 1000 }, { comprobante: null, monto: 300 }]
+    : [{ comprobante: '2', fecha: '2025-03-04', monto: 500, anulado_en: '2025-03-05' }, { comprobante: '406', fecha: null, monto: 700 }];
+  runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
+  await runInContext('loadReceipts()', app.context);
+  const rows = app.document.querySelector('#receipts-list').children;
+  assert.deepEqual(rows.map(row => row.children.map(item => item.textContent)), [
+    ['2', 'Luis', '04/03/2025', '$500', 'Anulado'],
+    ['406', 'Ana', '', '$1.000', 'Registrado'],
+    ['406', 'Luis', '', '$700', 'Registrado']
+  ]);
+  assert.equal(app.document.querySelector('#export-receipts').disabled, false);
+  app.context.mockRpc = async () => { throw new Error('Conexión perdida'); };
+  runInContext('rpc = mockRpc', app.context);
+  await runInContext('loadReceipts()', app.context);
+  assert.equal(app.document.querySelector('#receipts-list').children.length, 0);
+  assert.match(app.document.querySelector('#receipts-status').textContent, /Conexión perdida/);
+  assert.equal(app.document.querySelector('#export-receipts').disabled, true);
+});
+
+test('descarta el listado de comprobantes si se cierra la sesión durante la carga', async () => {
+  const app = setup([]);
+  let resolve;
+  app.context.mockRpc = () => new Promise(done => { resolve = done; });
+  runInContext('session = {}; rpc = mockRpc', app.context);
+  const loading = runInContext('loadReceipts()', app.context);
+  runInContext('session = null; clearReceipts()', app.context);
+  resolve([{ comprobante: '406', monto: 1000 }]);
+  await loading;
+  assert.equal(app.document.querySelector('#receipts-list').children.length, 0);
+  assert.equal(app.document.querySelector('#export-receipts').disabled, true);
+});
+
 function setup(payments, year = '2024') {
   const elements = new Map();
   const document = {

@@ -41,3 +41,18 @@ export async function crearArchivoPagosPorAnio(anio, filas) {
   });
   return libro.xlsx.writeBuffer();
 }
+
+export async function crearArchivoComprobantes(filas) {
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet('Comprobantes');
+  hoja.columns = [
+    { header: 'Comprobante', key: 'comprobante', width: 22 },
+    { header: 'Vecino', key: 'vecino', width: 40 },
+    { header: 'Fecha', key: 'fecha', width: 16 },
+    { header: 'Monto', key: 'monto', width: 16 },
+    { header: 'Estado', key: 'estado', width: 16 }
+  ];
+  hoja.getRow(1).font = { bold: true };
+  for (const fila of filas) hoja.addRow(fila);
+  return libro.xlsx.writeBuffer();
+}
