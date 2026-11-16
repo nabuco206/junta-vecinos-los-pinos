@@ -40,7 +40,9 @@ las funciones correspondientes.
    fecha desconocida y comprobantes repetidos entre pagos históricos.
 10. Ejecuta `supabase/editar_pago.sql` para habilitar la modificación de pagos.
     También debe ejecutarse en instalaciones existentes; no cambia pagos.
-11. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
+11. Ejecuta `supabase/numero_socio.sql` para agregar el número de socio opcional y
+    único. También debe ejecutarse en instalaciones existentes; no cambia datos.
+12. Abre la página publicada e inicia sesión con ese usuario. Configura la cuota
    mensual para cada año necesario, registra los vecinos con su mes de inicio
    y registra los pagos.
 

@@ -27,6 +27,27 @@ test('el selector de Pagos por Año contiene exclusivamente los años 2014 a 202
   assert.ok(selected >= 2014 && selected <= 2027);
 });
 
+test('ordena vecinos alfabéticamente y números de socio en orden natural', () => {
+  const app = setup([]);
+  app.context.testNeighbors = [
+    { id: 1, nombre: 'Zoe', numero_socio: '10' },
+    { id: 2, nombre: 'Ángela', numero_socio: '2' },
+    { id: 3, nombre: 'Ana', numero_socio: '001' }
+  ];
+  assert.deepEqual(
+    Array.from(runInContext("sortNeighborRows(testNeighbors, 'nombre', 'asc')", app.context), neighbor => neighbor.id),
+    [3, 2, 1]
+  );
+  assert.deepEqual(
+    Array.from(runInContext("sortNeighborRows(testNeighbors, 'numero_socio', 'asc')", app.context), neighbor => neighbor.id),
+    [3, 2, 1]
+  );
+  assert.deepEqual(
+    Array.from(runInContext("sortNeighborRows(testNeighbors, 'numero_socio', 'desc')", app.context), neighbor => neighbor.id),
+    [1, 2, 3]
+  );
+});
+
 function setup(payments, year = '2024') {
   const elements = new Map();
   const document = {

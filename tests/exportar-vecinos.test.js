@@ -11,15 +11,16 @@ async function leerArchivo(vecinos) {
 
 test('exporta datos como texto seguro y conserva el mes de inicio', async () => {
   const hoja = await leerArchivo([
-    { id: 1, nombre: 'Ángela, "Sol"', rut: '12.345.678-K', inicio: '2014-02-01' },
-    { id: 2, nombre: '=1+1', rut: '1-9', inicio: '2026-03-01', no_paga_cuota: true }
+    { id: 1, nombre: 'Ángela, "Sol"', rut: '12.345.678-K', numero_socio: '0012', inicio: '2014-02-01' },
+    { id: 2, nombre: '=1+1', rut: '1-9', numero_socio: '20', inicio: '2026-03-01', no_paga_cuota: true }
   ]);
-  assert.deepEqual(hoja.getRow(1).values.slice(1), ['ID', 'Nombre', 'RUT', 'Inicio de cobro (mes/año)', 'Cuota']);
-  assert.deepEqual(hoja.getRow(2).values.slice(1), [1, 'Ángela, "Sol"', '12.345.678-K', '02/2014', 'Paga cuota']);
+  assert.deepEqual(hoja.getRow(1).values.slice(1), ['ID', 'Nombre', 'RUT', 'Número de socio', 'Inicio de cobro (mes/año)', 'Cuota']);
+  assert.deepEqual(hoja.getRow(2).values.slice(1), [1, 'Ángela, "Sol"', '12.345.678-K', '0012', '02/2014', 'Paga cuota']);
   assert.equal(hoja.getCell('B3').value, '=1+1');
   assert.equal(hoja.getCell('B3').formula, undefined);
-  assert.equal(hoja.getCell('D3').value, '03/2026');
-  assert.equal(hoja.getCell('E3').value, 'No paga cuota');
+  assert.equal(hoja.getCell('D3').value, '20');
+  assert.equal(hoja.getCell('E3').value, '03/2026');
+  assert.equal(hoja.getCell('F3').value, 'No paga cuota');
 });
 
 test('genera encabezados aun sin vecinos', async () => {

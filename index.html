@@ -65,6 +65,7 @@
           <form id="neighbor-form">
             <label>Nombre<input name="nombre" maxlength="100" required></label>
             <label>RUT<input name="rut" maxlength="30" required></label>
+            <label>Número de socio (opcional)<input name="numero_socio" type="text" inputmode="numeric" pattern="[0-9]{1,30}" maxlength="30"></label>
             <label>Mes de inicio de cobro<input name="inicio" type="month" min="2000-01" max="2100-12" required></label>
             <label class="checkbox"><input name="no_paga_cuota" type="checkbox"> No paga cuota</label>
             <p>La exención se aplica a todos los meses. Los pagos anteriores se conservan.</p>
@@ -85,7 +86,16 @@
           <p id="neighbors-empty" hidden>No hay vecinos registrados.</p>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Nombre</th><th>RUT</th><th>Inicio de cobro</th><th>Cuota</th><th>Acción</th></tr></thead>
+              <thead>
+                <tr id="neighbors-sort-headers">
+                  <th scope="col" aria-sort="ascending"><button type="button" class="table-sort" data-neighbor-sort="nombre">Nombre</button></th>
+                  <th scope="col" aria-sort="none"><button type="button" class="table-sort" data-neighbor-sort="rut">RUT</button></th>
+                  <th scope="col" aria-sort="none"><button type="button" class="table-sort" data-neighbor-sort="numero_socio">Número de socio</button></th>
+                  <th scope="col" aria-sort="none"><button type="button" class="table-sort" data-neighbor-sort="inicio">Inicio de cobro</button></th>
+                  <th scope="col" aria-sort="none"><button type="button" class="table-sort" data-neighbor-sort="cuota">Cuota</button></th>
+                  <th scope="col">Acción</th>
+                </tr>
+              </thead>
               <tbody id="neighbors-list"></tbody>
             </table>
           </div>

@@ -54,6 +54,11 @@ input:focus-visible, select:focus-visible, button:focus-visible { outline: 3px s
 .heading label { display: flex; align-items: center; gap: 8px; }.heading input { width: 110px; }
 .table-wrap { overflow-x: auto; } table { width: 100%; border-collapse: collapse; text-align: left; }
 th, td { padding: 10px; border-bottom: 1px solid #e1e7f0; white-space: nowrap; } th { background: #f6f8fb; }
+.table-sort { padding: 4px 0; background: transparent; color: inherit; text-align: left; }
+.table-sort::after { content: ' ↕'; color: #66738a; }
+th[aria-sort="ascending"] .table-sort::after { content: ' ▲'; }
+th[aria-sort="descending"] .table-sort::after { content: ' ▼'; }
+.table-sort:hover { background: transparent; color: #174bbd; text-decoration: underline; }
 .history-table, .history-table tbody { display: block; }
 .history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .history-table tr { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 14px 0; border-bottom: 1px solid #e1e7f0; }

@@ -12,6 +12,7 @@ let refreshPromise = null;
 let loadVersion = 0;
 let editingNeighbor = null;
 let neighbors = [];
+let neighborSort = { key: 'nombre', direction: 'asc' };
 let historyVersion = 0;
 let historyReceiptQuery = '';
 let historyYearVersion = 0;
@@ -415,6 +416,7 @@ function editNeighbor(neighbor) {
   const form = $('#neighbor-form');
   form.elements.nombre.value = neighbor.nombre;
   form.elements.rut.value = neighbor.rut;
+  form.elements.numero_socio.value = neighbor.numero_socio || '';
   form.elements.inicio.value = editingNeighbor.inicio;
   form.elements.no_paga_cuota.checked = neighbor.no_paga_cuota;
   $('#neighbor-form-title').textContent = 'Modificar vecino';
@@ -422,6 +424,58 @@ function editNeighbor(neighbor) {
   $('#neighbor-cancel').hidden = false;
   message.hidden = true;
   form.elements.nombre.focus();
+}
+
+function sortNeighborRows(items, key, direction) {
+  const collator = new Intl.Collator('es-CL', { numeric: true, sensitivity: 'base' });
+  const multiplier = direction === 'desc' ? -1 : 1;
+  return [...items].sort((a, b) => {
+    let left = a[key] ?? '';
+    let right = b[key] ?? '';
+    if (key === 'cuota') {
+      left = a.no_paga_cuota ? 'No paga cuota' : 'Paga cuota';
+      right = b.no_paga_cuota ? 'No paga cuota' : 'Paga cuota';
+    }
+    return collator.compare(String(left), String(right)) * multiplier;
+  });
+}
+
+function renderNeighborList() {
+  const list = $('#neighbors-list');
+  list.replaceChildren();
+  const sorted = sortNeighborRows(neighbors, neighborSort.key, neighborSort.direction);
+  $('#neighbors-empty').hidden = neighbors.length > 0;
+  for (const neighbor of sorted) {
+    const row = document.createElement('tr');
+    cell(row, neighbor.nombre);
+    cell(row, neighbor.rut);
+    cell(row, neighbor.numero_socio || '');
+    cell(row, `${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}`);
+    cell(row, neighbor.no_paga_cuota ? 'No paga cuota' : 'Paga cuota');
+    const action = cell(row, '');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'outline';
+    button.textContent = '✎ Modificar';
+    button.setAttribute('aria-label', `Modificar a ${neighbor.nombre}`);
+    button.addEventListener('click', () => editNeighbor(neighbor));
+    action.append(button);
+    list.append(row);
+  }
+  for (const header of document.querySelectorAll('#neighbors-sort-headers th[aria-sort]')) {
+    const button = header.querySelector('[data-neighbor-sort]');
+    const active = button.dataset.neighborSort === neighborSort.key;
+    header.setAttribute('aria-sort', active ? (neighborSort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+  }
+}
+
+function sortNeighborsBy(key) {
+  if (neighborSort.key === key) {
+    neighborSort.direction = neighborSort.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    neighborSort = { key, direction: 'asc' };
+  }
+  renderNeighborList();
 }
 
 function updateHistoryOptions(preserveSelection = false, prefix = 'history') {
@@ -645,26 +699,10 @@ function render(data) {
   const historyYearSelected = $('#history-year-neighbor').value;
   select.replaceChildren(new Option('Selecciona un vecino', ''));
   neighbors = data.vecinos;
-  const neighborsList = $('#neighbors-list');
-  neighborsList.replaceChildren();
-  $('#neighbors-empty').hidden = data.vecinos.length > 0;
   for (const neighbor of data.vecinos) {
     if (!neighbor.no_paga_cuota) select.add(new Option(`${neighbor.nombre} · ${neighbor.rut}`, neighbor.id));
-    const row = document.createElement('tr');
-    cell(row, neighbor.nombre);
-    cell(row, neighbor.rut);
-    cell(row, `${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}`);
-    cell(row, neighbor.no_paga_cuota ? 'No paga cuota' : 'Paga cuota');
-    const action = cell(row, '');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'outline';
-    button.textContent = '✎ Modificar';
-    button.setAttribute('aria-label', `Modificar a ${neighbor.nombre}`);
-    button.addEventListener('click', () => editNeighbor(neighbor));
-    action.append(button);
-    neighborsList.append(row);
   }
+  renderNeighborList();
   select.value = [...select.options].some(option => option.value === selected) ? selected : '';
   updateHistoryOptions(true);
   if (historySelected && !$('#history-neighbor').value) loadHistory();
@@ -772,6 +810,11 @@ $('#treasury-menu').addEventListener('click', event => {
   }
 });
 
+$('#neighbors-sort-headers').addEventListener('click', event => {
+  const button = event.target.closest('[data-neighbor-sort]');
+  if (button) sortNeighborsBy(button.dataset.neighborSort);
+});
+
 $('#history-search').addEventListener('input', () => {
   historyReceiptQuery = '';
   $('#history-receipt-search').value = '';
@@ -868,7 +911,8 @@ $('#neighbor-form').addEventListener('submit', event => {
     const parameters = {
       p_nombre: form.elements.nombre.value.trim(), p_rut: form.elements.rut.value.trim(),
       p_inicio: `${form.elements.inicio.value}-01`,
-      p_no_paga_cuota: form.elements.no_paga_cuota.checked
+      p_no_paga_cuota: form.elements.no_paga_cuota.checked,
+      p_numero_socio: form.elements.numero_socio.value.trim() || null
     };
     const name = neighbor ? 'cuotas_editar_vecino' : 'cuotas_crear_vecino';
     const args = neighbor ? { p_vecino: neighbor.id, ...parameters } : parameters;
@@ -876,11 +920,20 @@ $('#neighbor-form').addEventListener('submit', event => {
       await rpc(name, args);
     } catch (error) {
       if (error.code !== 'PGRST202') throw error;
-      if (parameters.p_no_paga_cuota || neighbor?.no_paga_cuota !== undefined) {
-        throw new Error('Para habilitar esta opción, ejecuta supabase/exencion_cuotas.sql en Supabase.');
+      if (parameters.p_numero_socio !== null) {
+        throw new Error('Para guardar el número de socio, ejecuta supabase/numero_socio.sql en Supabase.');
       }
-      const { p_no_paga_cuota, ...legacyArgs } = args;
-      await rpc(name, legacyArgs);
+      const { p_numero_socio, ...withoutMemberNumber } = args;
+      try {
+        await rpc(name, withoutMemberNumber);
+      } catch (legacyError) {
+        if (legacyError.code !== 'PGRST202') throw legacyError;
+        if (parameters.p_no_paga_cuota || neighbor?.no_paga_cuota !== undefined) {
+          throw new Error('Para habilitar esta opción, ejecuta supabase/exencion_cuotas.sql en Supabase.');
+        }
+        const { p_no_paga_cuota, ...legacyArgs } = withoutMemberNumber;
+        await rpc(name, legacyArgs);
+      }
     }
     resetNeighborForm();
     await updateAfterSave(neighbor ? 'Datos del vecino modificados.' : 'Vecino agregado.');
