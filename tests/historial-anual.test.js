@@ -79,6 +79,36 @@ test('lista comprobantes de todos los vecinos, incluyendo repetidos y anulados',
   assert.equal(app.document.querySelector('#export-receipts').disabled, true);
 });
 
+test('ordena comprobantes por fecha, monto y texto en ambos sentidos', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Zoe' }, { id: 2, nombre: 'Ana' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1
+    ? [{ id: 1, comprobante: '10', fecha: '2024-12-01', monto: 200 }]
+    : [{ id: 2, comprobante: '2', fecha: '2025-01-02', monto: 100, anulado_en: '2025-02-01' },
+       { id: 3, comprobante: '1', fecha: null, monto: 150 }];
+  runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
+  await runInContext('loadReceipts()', app.context);
+  const numbers = () => app.document.querySelector('#receipts-list').children.map(row => row.children[0].textContent);
+  assert.deepEqual(numbers(), ['1', '2', '10']);
+  runInContext("sortReceiptsBy('fecha')", app.context);
+  assert.deepEqual(numbers(), ['10', '2', '1']);
+  runInContext("sortReceiptsBy('fecha')", app.context);
+  assert.deepEqual(numbers(), ['2', '10', '1']);
+  runInContext("sortReceiptsBy('monto')", app.context);
+  assert.deepEqual(numbers(), ['2', '1', '10']);
+  runInContext("sortReceiptsBy('monto')", app.context);
+  assert.deepEqual(numbers(), ['10', '1', '2']);
+  runInContext("sortReceiptsBy('vecino')", app.context);
+  assert.deepEqual(numbers(), ['1', '2', '10']);
+  runInContext("sortReceiptsBy('estado')", app.context);
+  assert.equal(numbers()[0], '2');
+  runInContext("sortReceiptsBy('estado')", app.context);
+  assert.equal(numbers()[2], '2');
+  assert.equal(runInContext('receipts[2].comprobante', app.context), '2');
+  await runInContext('loadReceipts()', app.context);
+  assert.equal(numbers()[2], '2');
+});
+
 test('guarda la fecha de un comprobante sin alterar el monto ni las aplicaciones', async () => {
   const app = setup([]);
   const item = {
@@ -177,6 +207,7 @@ function setup(payments, year = '2024') {
       if (!elements.has(selector)) elements.set(selector, new Element());
       return elements.get(selector);
     },
+    querySelectorAll() { return []; },
     createElement() { return new Element(); }
   };
   const context = createContext({ document, Option: Element });

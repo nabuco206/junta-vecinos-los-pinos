@@ -23,6 +23,7 @@ let historyOverviewLoading = false;
 let historyOverviewExporting = false;
 let receiptsVersion = 0;
 let receipts = null;
+let receiptSort = { key: 'comprobante', direction: 'asc' };
 let receiptsExporting = false;
 let editingReceiptDate = null;
 let savingReceiptDate = false;
@@ -245,24 +246,8 @@ async function loadReceipts() {
         });
       }
     }
-    const collator = new Intl.Collator('es-CL', { numeric: true, sensitivity: 'base' });
-    rows.sort((a, b) => collator.compare(a.comprobante, b.comprobante) || collator.compare(a.vecino, b.vecino));
     receipts = rows;
-    for (const item of rows) {
-      const row = document.createElement('tr');
-      for (const value of [item.comprobante, item.vecino, item.fecha, money.format(item.monto), item.estado]) cell(row, value);
-      const action = cell(row, '');
-      if (!item.pago.anulado_en) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'outline';
-        button.textContent = item.pago.fecha ? 'Modificar fecha' : 'Ingresar fecha';
-        button.setAttribute('aria-label', `${button.textContent} del comprobante ${item.comprobante} de ${item.vecino}, pago ${item.pago.id}`);
-        button.addEventListener('click', () => openReceiptDate(item));
-        action.append(button);
-      }
-      $('#receipts-list').append(row);
-    }
+    renderReceipts();
     $('#receipts-status').textContent = rows.length ? `${rows.length} ${rows.length === 1 ? 'pago con comprobante' : 'pagos con comprobante'}.` : 'No hay comprobantes registrados.';
     $('#export-receipts').disabled = !rows.length || receiptsExporting;
     $('#receipts-duplicates').disabled = false;
@@ -272,6 +257,54 @@ async function loadReceipts() {
       ? 'Para habilitar el historial, ejecuta supabase/historial_vecino.sql en Supabase.'
       : `No se pudieron cargar los comprobantes: ${error.message}`;
   }
+}
+
+function sortReceiptRows(items, key, direction) {
+  const collator = new Intl.Collator('es-CL', { numeric: true, sensitivity: 'base' });
+  const multiplier = direction === 'desc' ? -1 : 1;
+  return [...items].sort((a, b) => {
+    if (key === 'fecha') {
+      const left = a.pago.fecha;
+      const right = b.pago.fecha;
+      if (!left || !right) return left ? -1 : right ? 1 : 0;
+      return collator.compare(left, right) * multiplier;
+    }
+    if (key === 'monto') return (a.monto - b.monto) * multiplier;
+    return collator.compare(a[key], b[key]) * multiplier;
+  });
+}
+
+function renderReceipts() {
+  if (!receipts) return;
+  receipts = sortReceiptRows(receipts, receiptSort.key, receiptSort.direction);
+  const list = $('#receipts-list');
+  list.replaceChildren();
+  for (const item of receipts) {
+    const row = document.createElement('tr');
+    for (const value of [item.comprobante, item.vecino, item.fecha, money.format(item.monto), item.estado]) cell(row, value);
+    const action = cell(row, '');
+    if (!item.pago.anulado_en) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'outline';
+      button.textContent = item.pago.fecha ? 'Modificar fecha' : 'Ingresar fecha';
+      button.setAttribute('aria-label', `${button.textContent} del comprobante ${item.comprobante} de ${item.vecino}, pago ${item.pago.id}`);
+      button.addEventListener('click', () => openReceiptDate(item));
+      action.append(button);
+    }
+    list.append(row);
+  }
+  for (const header of document.querySelectorAll('#receipts-sort-headers th[aria-sort]')) {
+    const button = header.querySelector('[data-receipt-sort]');
+    const active = button.dataset.receiptSort === receiptSort.key;
+    header.setAttribute('aria-sort', active ? (receiptSort.direction === 'asc' ? 'ascending' : 'descending') : 'none');
+  }
+}
+
+function sortReceiptsBy(key) {
+  if (receiptSort.key === key) receiptSort.direction = receiptSort.direction === 'asc' ? 'desc' : 'asc';
+  else receiptSort = { key, direction: 'asc' };
+  renderReceipts();
 }
 
 function openReceiptDate(item) {
@@ -999,6 +1032,10 @@ $('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
 $('#receipts-refresh').addEventListener('click', loadReceipts);
+$('#receipts-sort-headers').addEventListener('click', event => {
+  const button = event.target.closest('[data-receipt-sort]');
+  if (button) sortReceiptsBy(button.dataset.receiptSort);
+});
 $('#receipts-duplicates').addEventListener('click', showDuplicateReceipts);
 $('#receipt-date-form').addEventListener('submit', event => {
   event.preventDefault();
