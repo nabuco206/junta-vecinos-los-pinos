@@ -30,16 +30,18 @@
       <p id="balance"></p>
       <h2>Mis cuotas desde el inicio</h2>
       <div id="dues" class="dues-years"></div>
-      <div class="heading history-heading">
-        <h2>Mis pagos</h2>
-        <label>Año de pago<select id="year"></select></label>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Fecha</th><th>Comprobante</th><th>Monto</th><th>Aplicado a</th><th>Estado</th></tr></thead>
-          <tbody id="payments"></tbody>
-        </table>
-      </div>
+      <section hidden>
+        <div class="heading history-heading">
+          <h2>Mis pagos</h2>
+          <label>Año de pago<select id="year"></select></label>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Comprobante</th><th>Monto</th><th>Aplicado a</th><th>Estado</th></tr></thead>
+            <tbody id="payments"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </main>
 </body>
