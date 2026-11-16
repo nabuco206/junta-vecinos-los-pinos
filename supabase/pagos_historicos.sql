@@ -26,7 +26,7 @@ begin
     'cuotas', coalesce((
       select jsonb_agg(jsonb_build_object(
         'vecino_id', v.id, 'mes', m.mes::date,
-        'monto', case when v.no_paga_cuota then 0 else a.monto end, 'pagado', coalesce(p.pagado, 0)
+        'monto', case when v.no_paga_cuota or p_anio in (2019, 2020) then 0 else a.monto end, 'pagado', coalesce(p.pagado, 0)
       ) order by v.id, m.mes)
       from cuotas_privado.vecinos v
       cross join lateral generate_series(

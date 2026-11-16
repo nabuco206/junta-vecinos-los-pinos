@@ -117,7 +117,11 @@ async function loadYear(year, expectedSession) {
       }
       const amount = document.createElement('span');
       const detail = document.createElement('small');
-      if (exento) {
+      if (due.no_cobrado) {
+        month.classList.add('not-charged');
+        amount.textContent = 'No cobrado';
+        detail.textContent = due.pagado > 0 ? `Pagado ${money.format(due.pagado)}` : '';
+      } else if (exento) {
         amount.textContent = 'Exento';
         detail.textContent = '';
       } else if (balance === null) {

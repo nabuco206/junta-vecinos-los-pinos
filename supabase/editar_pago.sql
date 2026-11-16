@@ -61,6 +61,11 @@ begin
     if exists (select 1 from jsonb_array_elements(nuevas) a where a->>'mes' = mes) then
       raise exception 'No puedes repetir un mes en el mismo pago';
     end if;
+    if left(mes, 4) in ('2019', '2020') and monto::bigint > coalesce((
+      select (a->>'monto')::bigint from jsonb_array_elements(anteriores) a where a->>'mes' = mes
+    ), 0) then
+      raise exception 'No se pueden agregar pagos a meses no cobrados de 2019 y 2020';
+    end if;
     nuevas := nuevas || jsonb_build_array(jsonb_build_object('mes', mes, 'monto', monto::bigint));
     total := total + monto::numeric;
   end loop;

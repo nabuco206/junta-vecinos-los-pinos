@@ -111,7 +111,7 @@ begin
       select 1
       from generate_series(extract(year from v_inicio)::integer, v_anio_actual) y(anio)
       left join cuotas_privado.aranceles a on a.anio = y.anio::integer
-      where a.anio is null
+      where a.anio is null and y.anio not in (2019, 2020)
     ),
     'deuda_hasta_hoy', case when v_no_paga_cuota then 0 else coalesce((
       select sum(greatest(a.monto - coalesce(p.pagado, 0), 0))
@@ -126,11 +126,13 @@ begin
         where pg.vecino_id = v_vecino_id and pg.anulado_en is null
           and ap.mes = m.mes::date
       ) p on true
+      where extract(year from m.mes)::integer not in (2019, 2020)
     ), 0) end,
     'cuotas', coalesce((
       select jsonb_agg(jsonb_build_object(
         'mes', m.mes::date,
-        'monto', case when v_no_paga_cuota then 0 else a.monto end,
+        'monto', case when v_no_paga_cuota or extract(year from m.mes)::integer in (2019, 2020) then 0 else a.monto end,
+        'no_cobrado', extract(year from m.mes)::integer in (2019, 2020),
         'pagado', coalesce(p.pagado, 0),
         'comprobantes', coalesce(p.comprobantes, '[]'::jsonb)
       ) order by m.mes)

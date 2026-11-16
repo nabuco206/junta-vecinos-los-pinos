@@ -50,6 +50,8 @@ nav a { color: white; }
 .dues-month.overdue { border-color: #d99a9a; background: #fff2f2; color: #a42620; }
 .dues-month.overdue small { color: #a42620; }
 .dues-month.paid { border-color: #b7d7c1; background: #f3fbf5; color: #21643b; }
+.dues-month.not-charged { border-color: #d3b654; background: #fff8d8; color: #674d00; }
+.dues-month.not-charged small { color: #674d00; }
 .dues-month.unconfigured { background: #f6f8fb; color: #566176; }
 .history-receipt-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin-top: 16px; }
 .history-receipt-form label { flex: 1 1 260px; }

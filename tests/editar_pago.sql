@@ -46,7 +46,7 @@ select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000001
 do $$
 declare
   original jsonb := '{"fecha":null,"monto":2000,"aplicaciones":[{"mes":"2019-12-01","monto":1000},{"mes":"2020-01-01","monto":1000}]}';
-  nuevo jsonb := '[{"mes":"2020-02-01","monto":2000},{"mes":"2019-12-01","monto":500}]';
+  nuevo jsonb := '[{"mes":"2021-02-01","monto":2000},{"mes":"2019-12-01","monto":500}]';
 begin
   begin
     perform public.cuotas_editar_pago(10, '2020-02-03', 2600, nuevo, original);
@@ -99,7 +99,7 @@ begin
     raise exception 'La corrección de fecha alteró un pago sin aplicaciones';
   end if;
   if (select count(*) from cuotas_privado.aplicaciones where pago_id = 10) <> 2
-    or not exists (select 1 from cuotas_privado.aplicaciones where pago_id = 10 and mes = '2020-02-01' and monto = 2000)
+    or not exists (select 1 from cuotas_privado.aplicaciones where pago_id = 10 and mes = '2021-02-01' and monto = 2000)
     or not exists (select 1 from cuotas_privado.aplicaciones where pago_id = 10 and mes = '2019-12-01' and monto = 500) then
     raise exception 'Las aplicaciones no se actualizaron';
   end if;

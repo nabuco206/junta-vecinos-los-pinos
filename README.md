@@ -97,6 +97,10 @@ a todos.
 - Los importes son pesos chilenos enteros. Cada año tiene una cuota mensual
   común. No se puede modificar un monto anual si existen aplicaciones de pagos
   para ese año, incluso si esos pagos fueron anulados.
+- Los meses de 2019 y 2020 no se cobran y no generan deuda. Los pagos
+  históricos que ya se aplicaron a esos meses se conservan sin reasignarlos.
+  Para instalaciones existentes, ejecuta `supabase/no_cobro_pandemia.sql`
+  después de los demás scripts.
 - **Valor Cuota** muestra el monto configurado para el año actual y la lista
   de valores registrados por año; permite configurar cuotas de otros años. Si
   no existe un monto para el año actual, se informa en pantalla.

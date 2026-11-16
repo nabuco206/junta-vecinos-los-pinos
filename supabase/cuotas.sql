@@ -154,6 +154,10 @@ begin
   restante := p_monto;
   mes_actual := inicio;
   while mes_actual <= fin and restante > 0 loop
+    if extract(year from mes_actual)::integer in (2019, 2020) then
+      mes_actual := (mes_actual + interval '1 month')::date;
+      continue;
+    end if;
     select a.monto into cuota from cuotas_privado.aranceles a
       where a.anio = extract(year from mes_actual)::integer;
     if cuota is null then
