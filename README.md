@@ -100,6 +100,10 @@ a todos.
 - **Valor Cuota** muestra el monto configurado para el año actual y la lista
   de valores registrados por año; permite configurar cuotas de otros años. Si
   no existe un monto para el año actual, se informa en pantalla.
+- Si la cuota mensual fue siempre de $1.000, ejecuta una vez
+  `supabase/cuota_unica_1000.sql` después de registrar vecinos. Completa con
+  ese monto los años faltantes desde el primer inicio de cobro hasta el año
+  actual, sin reemplazar montos que ya estén configurados.
 - Los pagos parciales o adelantados se aplican a las cuotas pendientes más
   antiguas desde el mes de inicio. Si faltan años o el monto excede las cuotas
   configuradas, se rechaza el pago completo; no se guarda saldo a favor.
