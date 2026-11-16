@@ -283,6 +283,7 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
     configuracion_completa: true, deuda_hasta_hoy: 500,
     cuotas: [
       { mes: '2019-12-01', monto: 0, pagado: 500, comprobantes: ['100'], no_cobrado: true },
+      { mes: '2020-01-01', monto: 0, pagado: 0, no_cobrado: true },
       { mes: '2024-12-01', monto: 1000, pagado: 1000, comprobantes: ['411'] },
       { mes: '2025-01-01', monto: 1000, pagado: 500, comprobantes: ['433', '434'] },
       { mes: '2025-02-01', monto: 1000, pagado: 0 },
@@ -300,7 +301,10 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
   assert.equal(rows[1].children[0].textContent, '04/03/2025');
   assert.equal(context.testData.pagos[0].fecha, null);
   const years = document.querySelector('#dues').children;
-  assert.deepEqual(years.map(year => year.dataset.year), ['2025', '2024', '2019']);
+  assert.deepEqual(years.map(year => year.dataset.year), ['2025', '2024', '2020', '2019']);
+  assert.equal(years[0].children[0].textContent, '2025');
+  assert.equal(years[2].children[0].textContent, '2020 (Sin Cobro por Pandemia Acuerdo a asamblea)');
+  assert.equal(years[3].children[0].textContent, '2019 (Sin Cobro por Pandemia Acuerdo a asamblea)');
   const months = years[0].children[1].children;
   assert.equal(months[0].children[1].textContent, 'N.º 433, 434');
   assert.equal(months[0].children[2].textContent, 'Debe $500');
@@ -313,7 +317,7 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
   const previousYearPaidMonth = years[1].children[1].children[0];
   assert.equal(previousYearPaidMonth.children[1].textContent, 'N.º 411');
   assert.equal(previousYearPaidMonth.children[2].textContent, 'Pagada');
-  const pandemicMonth = years[2].children[1].children[0];
+  const pandemicMonth = years[3].children[1].children[0];
   assert.equal(pandemicMonth.className, 'dues-month not-charged');
   assert.equal(pandemicMonth.children[1].textContent, 'N.º 100');
   assert.equal(pandemicMonth.children[2].textContent, 'No cobrado');

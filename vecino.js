@@ -95,7 +95,9 @@ async function loadYear(year, expectedSession) {
     yearSection.className = 'dues-year';
     yearSection.dataset.year = year;
     const heading = document.createElement('h3');
-    heading.textContent = year;
+    heading.textContent = ['2019', '2020'].includes(year) && yearDues.some(due => due.no_cobrado)
+      ? `${year} (Sin Cobro por Pandemia Acuerdo a asamblea)`
+      : year;
     const monthGrid = document.createElement('div');
     monthGrid.className = 'dues-months';
     yearSection.append(heading, monthGrid);
