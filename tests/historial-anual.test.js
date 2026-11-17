@@ -170,21 +170,28 @@ test('descarta el listado de comprobantes si se cierra la sesión durante la car
   assert.equal(app.document.querySelector('#export-receipts').disabled, true);
 });
 
-test('el diálogo muestra solo números repetidos entre vecinos distintos, incluidos anulados', async () => {
+test('el diálogo excluye pagos anulados al detectar comprobantes repetidos', async () => {
   const app = setup([]);
-  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Ana' }];
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Ana' }, { id: 3, nombre: 'Luis' }];
   app.context.mockRpc = async (_, args) => args.p_vecino === 1
     ? [{ comprobante: ' abc ', monto: 100 }, { comprobante: 'abc', monto: 200 }, { comprobante: '2', monto: 300 }, { comprobante: '2', monto: 400 }]
-    : [{ comprobante: 'ABC', monto: 500, anulado_en: '2025-01-01' }, { comprobante: '02', monto: 600 }];
+    : args.p_vecino === 2
+      ? [{ comprobante: 'ABC', monto: 500, anulado_en: '2025-01-01' }, { comprobante: '02', monto: 600 }, { comprobante: '2', monto: 700 }]
+      : [{ comprobante: '2', monto: 800, anulado_en: '2025-01-01' }];
   runInContext('neighbors = neighborList; session = {}; rpc = mockRpc', app.context);
   await runInContext('loadReceipts();', app.context);
   runInContext('showDuplicateReceipts()', app.context);
   const dialog = app.document.querySelector('#receipts-duplicates-dialog');
   const rows = app.document.querySelector('#receipts-duplicates-list').children;
   assert.equal(dialog.open, true);
-  assert.deepEqual(rows.map(row => row.children[0].textContent).sort(), [' abc ', 'ABC', 'abc'].sort());
-  assert.ok(rows.some(row => row.children[4].textContent === 'Anulado'));
+  assert.deepEqual(rows.map(row => row.children[0].textContent), ['2', '2', '2']);
+  assert.ok(rows.every(row => row.children[4].textContent === 'Registrado'));
   assert.match(app.document.querySelector('#receipts-duplicates-status').textContent, /^1 número repetido/);
+  assert.equal(app.document.querySelector('#receipts-list').children.length, 8);
+  runInContext("receipts.find(item => item.vecinoId === '2' && item.comprobante === '2').pago.anulado_en = '2025-01-02'", app.context);
+  runInContext("document.querySelector('#receipts-duplicates-dialog').close(); showDuplicateReceipts()", app.context);
+  assert.equal(app.document.querySelector('#receipts-duplicates-list').children.length, 0);
+  assert.match(app.document.querySelector('#receipts-duplicates-status').textContent, /No hay comprobantes repetidos/);
   runInContext('clearReceipts()', app.context);
   assert.equal(dialog.open, false);
   assert.equal(app.document.querySelector('#receipts-duplicates-list').children.length, 0);

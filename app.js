@@ -357,13 +357,14 @@ async function saveReceiptDate(form) {
 
 function showDuplicateReceipts() {
   if (!session || !receipts) return;
+  const activeReceipts = receipts.filter(item => !item.pago.anulado_en);
   const owners = new Map();
-  for (const item of receipts) {
+  for (const item of activeReceipts) {
     const key = item.comprobante.trim().toUpperCase();
     if (!owners.has(key)) owners.set(key, new Set());
     owners.get(key).add(item.vecinoId);
   }
-  const repeated = receipts.filter(item => owners.get(item.comprobante.trim().toUpperCase()).size > 1);
+  const repeated = activeReceipts.filter(item => owners.get(item.comprobante.trim().toUpperCase()).size > 1);
   const list = $('#receipts-duplicates-list');
   list.replaceChildren();
   for (const item of repeated) {
