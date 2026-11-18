@@ -30,6 +30,11 @@ let savingReceiptDate = false;
 let paymentEditVersion = 0;
 let paymentEditQuery = '';
 let editingPayment = null;
+let paymentCalculationVersion = 0;
+let paymentCalculationTimer = null;
+let paymentAutomatic = null;
+let paymentCalculationPending = false;
+let paymentCalculationFailed = false;
 const overviewFirstYear = 2014;
 const overviewLastYear = 2027;
 
@@ -380,11 +385,84 @@ function showDuplicateReceipts() {
 }
 
 function resetPaymentEdit() {
+  paymentCalculationVersion++;
+  clearTimeout(paymentCalculationTimer);
+  paymentCalculationPending = false;
+  paymentCalculationFailed = false;
+  paymentAutomatic = null;
   editingPayment = null;
   $('#payment-edit-form').reset();
   $('#payment-edit-form').hidden = true;
   $('#payment-edit-months').replaceChildren();
   $('#payment-edit-sum').textContent = '';
+  $('#payment-edit-auto-status').textContent = '';
+}
+
+function originalPayment(payment) {
+  return {
+    fecha: payment.fecha || null,
+    monto: Number(payment.monto),
+    aplicaciones: payment.aplicaciones.map(item => ({ mes: item.mes, monto: Number(item.monto) }))
+      .sort((a, b) => a.mes.localeCompare(b.mes))
+  };
+}
+
+function useManualPaymentEdit() {
+  paymentCalculationVersion++;
+  clearTimeout(paymentCalculationTimer);
+  paymentCalculationPending = false;
+  paymentCalculationFailed = false;
+  paymentAutomatic = null;
+  $('#payment-edit-auto-status').textContent = 'Ajuste manual. Revisa los meses y montos antes de guardar.';
+}
+
+async function calculatePaymentEdit(selected, amount, version) {
+  const activeSession = session;
+  try {
+    const applications = await rpc('cuotas_previsualizar_edicion_pago', {
+      p_pago: selected.payment.id, p_monto: amount, p_original: originalPayment(selected.payment)
+    });
+    if (version !== paymentCalculationVersion || session !== activeSession || editingPayment !== selected) return;
+    paymentAutomatic = applications;
+    paymentCalculationPending = false;
+    $('#payment-edit-months').replaceChildren();
+    for (const application of applications) addPaymentEditMonth(application);
+    updatePaymentEditSum();
+    $('#payment-edit-auto-status').textContent = 'Meses recalculados. Revisa el resultado antes de guardar.';
+  } catch (error) {
+    if (version !== paymentCalculationVersion || session !== activeSession || editingPayment !== selected) return;
+    paymentCalculationPending = false;
+    paymentCalculationFailed = true;
+    $('#payment-edit-auto-status').textContent = error.code === 'PGRST202'
+      ? 'Para recalcular, ejecuta supabase/recalcular_pago.sql en Supabase.'
+      : `No se pudieron recalcular los meses: ${error.message}`;
+  }
+}
+
+function schedulePaymentCalculation(force = false) {
+  if (!editingPayment) return;
+  const form = $('#payment-edit-form');
+  const amount = Number(form.elements.monto.value);
+  const selected = editingPayment;
+  const version = ++paymentCalculationVersion;
+  clearTimeout(paymentCalculationTimer);
+  paymentAutomatic = null;
+  paymentCalculationPending = false;
+  paymentCalculationFailed = false;
+  if (!Number.isInteger(amount) || amount < 1 || amount > 1000000000) {
+    $('#payment-edit-auto-status').textContent = 'Ingresa un monto válido para recalcular los meses.';
+    return;
+  }
+  if (amount === Number(selected.payment.monto) && !force) {
+    $('#payment-edit-months').replaceChildren();
+    for (const application of selected.payment.aplicaciones) addPaymentEditMonth(application);
+    updatePaymentEditSum();
+    $('#payment-edit-auto-status').textContent = '';
+    return;
+  }
+  paymentCalculationPending = true;
+  $('#payment-edit-auto-status').textContent = 'Recalculando meses…';
+  paymentCalculationTimer = setTimeout(() => calculatePaymentEdit(selected, amount, version), 350);
 }
 
 function updatePaymentEditSum() {
@@ -406,6 +484,7 @@ function addPaymentEditMonth(application = null) {
   month.name = 'mes';
   month.required = true;
   month.value = application ? application.mes.slice(0, 7) : '';
+  month.addEventListener('input', useManualPaymentEdit);
   monthLabel.append(month);
   const amountLabel = document.createElement('label');
   amountLabel.textContent = 'Monto aplicado';
@@ -417,13 +496,13 @@ function addPaymentEditMonth(application = null) {
   amount.step = '1';
   amount.required = true;
   amount.value = application ? String(application.monto) : '';
-  amount.addEventListener('input', updatePaymentEditSum);
+  amount.addEventListener('input', () => { useManualPaymentEdit(); updatePaymentEditSum(); });
   amountLabel.append(amount);
   const remove = document.createElement('button');
   remove.type = 'button';
   remove.className = 'outline';
   remove.textContent = 'Quitar mes';
-  remove.addEventListener('click', () => { row.remove(); updatePaymentEditSum(); });
+  remove.addEventListener('click', () => { useManualPaymentEdit(); row.remove(); updatePaymentEditSum(); });
   row.append(monthLabel, amountLabel, remove);
   $('#payment-edit-months').append(row);
   updatePaymentEditSum();
@@ -1251,7 +1330,11 @@ $('#payment-edit-search-form').addEventListener('submit', event => {
   paymentEditQuery = $('#payment-edit-search').value.trim();
   searchPaymentEdit();
 });
-$('#payment-edit-add-month').addEventListener('click', () => addPaymentEditMonth());
+$('#payment-edit-add-month').addEventListener('click', () => { useManualPaymentEdit(); addPaymentEditMonth(); });
+$('#payment-edit-recalculate').addEventListener('click', () => schedulePaymentCalculation(true));
+$('#payment-edit-form').addEventListener('input', event => {
+  if (event.target.name === 'monto') schedulePaymentCalculation();
+});
 $('#payment-edit-cancel').addEventListener('click', resetPaymentEdit);
 $('#payment-edit-form').addEventListener('submit', event => {
   event.preventDefault();
@@ -1266,13 +1349,16 @@ $('#payment-edit-form').addEventListener('submit', event => {
     showMessage('No puedes repetir un mes en el mismo pago.', true);
     return;
   }
-  const original = {
-    fecha: selected.payment.fecha || null,
-    monto: Number(selected.payment.monto),
-    aplicaciones: selected.payment.aplicaciones.map(item => ({ mes: item.mes, monto: Number(item.monto) }))
-      .sort((a, b) => a.mes.localeCompare(b.mes))
-  };
+  const original = originalPayment(selected.payment);
   const amount = Number(form.elements.monto.value);
+  if (paymentCalculationPending) {
+    showMessage('Espera a que termine el recálculo de meses.', true);
+    return;
+  }
+  if (paymentCalculationFailed) {
+    showMessage('Corrige el error de recálculo o ajusta los meses manualmente.', true);
+    return;
+  }
   const total = applications.reduce((sum, item) => sum + item.monto, 0);
   if ((amount !== original.monto || JSON.stringify(applications) !== JSON.stringify(original.aplicaciones)) && total !== amount) {
     showMessage('La suma aplicada a los meses debe coincidir con el monto del pago.', true);
@@ -1282,12 +1368,14 @@ $('#payment-edit-form').addEventListener('submit', event => {
   const activeSession = session;
   withBusy(form, async () => {
     try {
-      await rpc('cuotas_editar_pago', {
+      await rpc(paymentAutomatic ? 'cuotas_guardar_edicion_automatica' : 'cuotas_editar_pago', {
         p_pago: selected.payment.id, p_fecha: form.elements.fecha.value || null,
         p_monto: amount, p_aplicaciones: applications, p_original: original
       });
     } catch (error) {
-      if (error.code === 'PGRST202') throw new Error('Para modificar pagos, ejecuta supabase/editar_pago.sql en Supabase.');
+      if (error.code === 'PGRST202') throw new Error(paymentAutomatic
+        ? 'Para recalcular, ejecuta supabase/recalcular_pago.sql en Supabase.'
+        : 'Para modificar pagos, ejecuta supabase/editar_pago.sql en Supabase.');
       throw error;
     }
     if (session !== activeSession) return;

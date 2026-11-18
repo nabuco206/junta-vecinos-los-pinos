@@ -101,6 +101,11 @@ a todos.
   históricos que ya se aplicaron a esos meses se conservan sin reasignarlos.
   Para instalaciones existentes, ejecuta `supabase/no_cobro_pandemia.sql`
   después de los demás scripts.
+- Ejecuta `supabase/recalcular_pago.sql` después de `no_cobro_pandemia.sql`
+  para habilitar el recálculo al modificar el monto de un pago. Presenta los
+  meses para revisión, omite años sin cobro y saldos cubiertos por otros pagos,
+  y verifica nuevamente la distribución al guardar. Se conserva el ajuste manual.
+  Los pagos ya aplicados a años sin cobro solo se reasignan al corregir su monto.
 - **Valor Cuota** muestra el monto configurado para el año actual y la lista
   de valores registrados por año; permite configurar cuotas de otros años. Si
   no existe un monto para el año actual, se informa en pantalla.

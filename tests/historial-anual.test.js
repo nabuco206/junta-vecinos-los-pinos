@@ -33,6 +33,36 @@ test('el selector de Pagos por Año contiene exclusivamente los años 2014 a 202
   assert.ok(selected >= 2014 && selected <= 2027);
 });
 
+test('el recálculo muestra la propuesta y descarta respuestas anteriores', async () => {
+  const app = setup([]);
+  app.context.payment = { id: 10, fecha: null, monto: 2000, aplicaciones: [{ mes: '2021-01-01', monto: 2000 }] };
+  let resolveFirst;
+  app.context.mockRpc = (_, args) => args.p_monto === 3000
+    ? new Promise(resolve => { resolveFirst = resolve; })
+    : Promise.resolve([{ mes: '2021-01-01', monto: 500 }]);
+  runInContext('session = {}; editingPayment = { payment }; rpc = mockRpc; paymentCalculationVersion = 1', app.context);
+  const first = runInContext('calculatePaymentEdit(editingPayment, 3000, 1)', app.context);
+  runInContext('paymentCalculationVersion = 2', app.context);
+  await runInContext('calculatePaymentEdit(editingPayment, 500, 2)', app.context);
+  resolveFirst([{ mes: '2021-01-01', monto: 3000 }]);
+  await first;
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Meses recalculados/);
+  assert.equal(app.document.querySelector('#payment-edit-months').children[0].children[1].children[0].value, '500');
+  assert.equal(runInContext('paymentAutomatic[0].monto', app.context), 500);
+});
+
+test('el error de recálculo bloquea la propuesta hasta un ajuste manual', async () => {
+  const app = setup([]);
+  app.context.payment = { id: 10, fecha: null, monto: 2000, aplicaciones: [] };
+  app.context.mockRpc = async () => { throw new Error('Falta configurar el monto'); };
+  runInContext('session = {}; editingPayment = { payment }; rpc = mockRpc; paymentCalculationVersion = 1', app.context);
+  await runInContext('calculatePaymentEdit(editingPayment, 3000, 1)', app.context);
+  assert.equal(runInContext('paymentCalculationFailed', app.context), true);
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Falta configurar/);
+  runInContext('useManualPaymentEdit()', app.context);
+  assert.equal(runInContext('paymentCalculationFailed', app.context), false);
+});
+
 test('ordena vecinos alfabéticamente y números de socio en orden natural', () => {
   const app = setup([]);
   app.context.testNeighbors = [
@@ -217,7 +247,7 @@ function setup(payments, year = '2024') {
     querySelectorAll() { return []; },
     createElement() { return new Element(); }
   };
-  const context = createContext({ document, Option: Element });
+  const context = createContext({ document, Option: Element, setTimeout, clearTimeout });
   runInContext(readFileSync(new URL('../app.js', import.meta.url), 'utf8'), context);
   context.testPayments = payments;
   runInContext("neighbors = [{ id: 1, nombre: 'Vecino' }]; historyYearPayments = testPayments", context);
