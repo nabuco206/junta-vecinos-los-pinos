@@ -39,14 +39,14 @@ test('el recálculo muestra la propuesta y descarta respuestas anteriores', asyn
   let resolveFirst;
   app.context.mockRpc = (_, args) => args.p_monto === 3000
     ? new Promise(resolve => { resolveFirst = resolve; })
-    : Promise.resolve([{ mes: '2021-01-01', monto: 500 }]);
+    : Promise.resolve([{ id: 10, monto: 500, antes: { aplicaciones: [] }, aplicaciones: [{ mes: '2021-01-01', monto: 500 }] }]);
   runInContext('session = {}; editingPayment = { payment }; rpc = mockRpc; paymentCalculationVersion = 1', app.context);
   const first = runInContext('calculatePaymentEdit(editingPayment, 3000, 1)', app.context);
   runInContext('paymentCalculationVersion = 2', app.context);
   await runInContext('calculatePaymentEdit(editingPayment, 500, 2)', app.context);
-  resolveFirst([{ mes: '2021-01-01', monto: 3000 }]);
+  resolveFirst([{ id: 10, monto: 3000, antes: { aplicaciones: [] }, aplicaciones: [{ mes: '2021-01-01', monto: 3000 }] }]);
   await first;
-  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Meses recalculados/);
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Pagos redistribuidos/);
   assert.equal(app.document.querySelector('#payment-edit-months').children[0].children[1].children[0].value, '500');
   assert.equal(runInContext('paymentAutomatic[0].monto', app.context), 500);
 });

@@ -101,11 +101,15 @@ a todos.
   históricos que ya se aplicaron a esos meses se conservan sin reasignarlos.
   Para instalaciones existentes, ejecuta `supabase/no_cobro_pandemia.sql`
   después de los demás scripts.
-- Ejecuta `supabase/recalcular_pago.sql` después de `no_cobro_pandemia.sql`
-  para habilitar el recálculo al modificar el monto de un pago. Presenta los
-  meses para revisión, omite años sin cobro y saldos cubiertos por otros pagos,
-  y verifica nuevamente la distribución al guardar. Se conserva el ajuste manual.
-  Los pagos ya aplicados a años sin cobro solo se reasignan al corregir su monto.
+- Ejecuta `supabase/redistribuir_pagos.sql` después de `no_cobro_pandemia.sql`
+  para recalcular todos los
+  pagos vigentes del vecino desde su mes de inicio, en orden numérico de
+  comprobante. Los pagos sin comprobante se ubican por fecha; sin fecha se
+  dejan al final. Ante comprobantes no numéricos, repetidos o fechas ambiguas,
+  se solicita revisar los datos. La vista previa muestra el antes y después de
+  cada pago y se verifica nuevamente al guardar. Los pagos de 2019 y 2020 se
+  reasignan a meses cobrables al redistribuirlos. Se conserva el ajuste manual
+  del pago seleccionado.
 - **Valor Cuota** muestra el monto configurado para el año actual y la lista
   de valores registrados por año; permite configurar cuotas de otros años. Si
   no existe un monto para el año actual, se informa en pantalla.

@@ -396,6 +396,7 @@ function resetPaymentEdit() {
   $('#payment-edit-months').replaceChildren();
   $('#payment-edit-sum').textContent = '';
   $('#payment-edit-auto-status').textContent = '';
+  $('#payment-edit-redistribution').replaceChildren();
 }
 
 function originalPayment(payment) {
@@ -413,28 +414,51 @@ function useManualPaymentEdit() {
   paymentCalculationPending = false;
   paymentCalculationFailed = false;
   paymentAutomatic = null;
+  $('#payment-edit-redistribution').replaceChildren();
   $('#payment-edit-auto-status').textContent = 'Ajuste manual. Revisa los meses y montos antes de guardar.';
 }
 
 async function calculatePaymentEdit(selected, amount, version) {
   const activeSession = session;
+  const date = $('#payment-edit-form').elements.fecha.value || null;
   try {
-    const applications = await rpc('cuotas_previsualizar_edicion_pago', {
-      p_pago: selected.payment.id, p_monto: amount, p_original: originalPayment(selected.payment)
+    const distribution = await rpc('cuotas_previsualizar_redistribucion', {
+      p_pago: selected.payment.id, p_fecha: date, p_monto: amount, p_original: originalPayment(selected.payment)
     });
     if (version !== paymentCalculationVersion || session !== activeSession || editingPayment !== selected) return;
-    paymentAutomatic = applications;
+    const selectedResult = distribution.find(item => item.id === selected.payment.id);
+    if (!selectedResult) throw new Error('La distribución no incluye el pago seleccionado.');
+    paymentAutomatic = distribution;
     paymentCalculationPending = false;
     $('#payment-edit-months').replaceChildren();
-    for (const application of applications) addPaymentEditMonth(application);
+    for (const application of selectedResult.aplicaciones) addPaymentEditMonth(application);
     updatePaymentEditSum();
-    $('#payment-edit-auto-status').textContent = 'Meses recalculados. Revisa el resultado antes de guardar.';
+    const preview = $('#payment-edit-redistribution');
+    preview.replaceChildren();
+    const heading = document.createElement('h4');
+    heading.textContent = 'Cambios propuestos para todos los pagos vigentes';
+    preview.append(heading);
+    const describe = applications => applications.length
+      ? applications.map(item => `${item.mes.slice(0, 7)}: ${money.format(item.monto)}`).join(', ')
+      : 'Sin meses';
+    for (const item of distribution) {
+      const entry = document.createElement('div');
+      const label = document.createElement('strong');
+      label.textContent = `Comprobante ${item.comprobante || 'sin número'} · Pago #${item.id} · ${item.fecha || 'sin fecha'} · ${money.format(item.monto)}`;
+      const before = document.createElement('p');
+      before.textContent = `Antes: ${describe(item.antes.aplicaciones)}`;
+      const after = document.createElement('p');
+      after.textContent = `Después: ${describe(item.aplicaciones)}`;
+      entry.append(label, before, after);
+      preview.append(entry);
+    }
+    $('#payment-edit-auto-status').textContent = 'Pagos redistribuidos. Revisa todos los cambios antes de guardar.';
   } catch (error) {
     if (version !== paymentCalculationVersion || session !== activeSession || editingPayment !== selected) return;
     paymentCalculationPending = false;
     paymentCalculationFailed = true;
     $('#payment-edit-auto-status').textContent = error.code === 'PGRST202'
-      ? 'Para recalcular, ejecuta supabase/recalcular_pago.sql en Supabase.'
+      ? 'Para recalcular, ejecuta supabase/redistribuir_pagos.sql en Supabase.'
       : `No se pudieron recalcular los meses: ${error.message}`;
   }
 }
@@ -447,6 +471,7 @@ function schedulePaymentCalculation(force = false) {
   const version = ++paymentCalculationVersion;
   clearTimeout(paymentCalculationTimer);
   paymentAutomatic = null;
+  $('#payment-edit-redistribution').replaceChildren();
   paymentCalculationPending = false;
   paymentCalculationFailed = false;
   if (!Number.isInteger(amount) || amount < 1 || amount > 1000000000) {
@@ -1334,6 +1359,9 @@ $('#payment-edit-add-month').addEventListener('click', () => { useManualPaymentE
 $('#payment-edit-recalculate').addEventListener('click', () => schedulePaymentCalculation(true));
 $('#payment-edit-form').addEventListener('input', event => {
   if (event.target.name === 'monto') schedulePaymentCalculation();
+  if (event.target.name === 'fecha' && (paymentAutomatic || paymentCalculationPending || paymentCalculationFailed)) {
+    schedulePaymentCalculation(true);
+  }
 });
 $('#payment-edit-cancel').addEventListener('click', resetPaymentEdit);
 $('#payment-edit-form').addEventListener('submit', event => {
@@ -1364,17 +1392,22 @@ $('#payment-edit-form').addEventListener('submit', event => {
     showMessage('La suma aplicada a los meses debe coincidir con el monto del pago.', true);
     return;
   }
-  if (!confirm(`¿Guardar la modificación del comprobante ${selected.payment.comprobante} de ${selected.neighbor.nombre}? Monto: ${money.format(amount)}. Esto puede modificar la deuda y los totales.`)) return;
+  if (!confirm(`¿Guardar la modificación del comprobante ${selected.payment.comprobante} de ${selected.neighbor.nombre}? Monto: ${money.format(amount)}.${paymentAutomatic ? ' Se redistribuirán todos sus pagos vigentes según la vista previa.' : ' Esto puede modificar la deuda y los totales.'}`)) return;
   const activeSession = session;
   withBusy(form, async () => {
     try {
-      await rpc(paymentAutomatic ? 'cuotas_guardar_edicion_automatica' : 'cuotas_editar_pago', {
+      const parameters = {
         p_pago: selected.payment.id, p_fecha: form.elements.fecha.value || null,
-        p_monto: amount, p_aplicaciones: applications, p_original: original
-      });
+        p_monto: amount, p_original: original
+      };
+      if (paymentAutomatic) {
+        await rpc('cuotas_guardar_redistribucion', { ...parameters, p_distribucion: paymentAutomatic });
+      } else {
+        await rpc('cuotas_editar_pago', { ...parameters, p_aplicaciones: applications });
+      }
     } catch (error) {
       if (error.code === 'PGRST202') throw new Error(paymentAutomatic
-        ? 'Para recalcular, ejecuta supabase/recalcular_pago.sql en Supabase.'
+        ? 'Para recalcular, ejecuta supabase/redistribuir_pagos.sql en Supabase.'
         : 'Para modificar pagos, ejecuta supabase/editar_pago.sql en Supabase.');
       throw error;
     }
