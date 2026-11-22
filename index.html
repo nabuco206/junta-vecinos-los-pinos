@@ -31,9 +31,7 @@
         <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
         <button type="button" class="menu-link" data-view="history-overview">Pagos por Año</button>
         <button type="button" class="menu-link" data-view="receipts">Comprobantes</button>
-        <button type="button" class="menu-link" data-view="export-cuotas">Excel de cuotas</button>
         <button type="button" class="menu-link" data-view="dues">Valor Cuota</button>
-        <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
       <section id="view-dashboard" class="view">
         <section class="card">
@@ -59,6 +57,7 @@
             </article>
           </div>
           <p id="summary-info" aria-live="polite"></p>
+          <button type="button" id="open-access" class="outline">Acceso vecinos</button>
         </section>
       </section>
       <section id="view-neighbors" class="view" hidden>
@@ -178,14 +177,16 @@
           <div class="heading">
             <h2>Pagos por Año</h2>
             <label>Año <select id="history-overview-year"></select></label>
-            <button type="button" id="export-history-overview" class="excel" disabled>
+            <button type="button" id="export-cuotas" class="excel">
               <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 3v12m-4-4 4 4 4-4M4 17v3h16v-3"/>
               </svg>
-              Descargar Excel
+              Excel Oficial Tesorería
             </button>
           </div>
           <p>Comprobantes y fechas de los pagos vigentes aplicados a cada mes. Una celda vacía no implica necesariamente deuda. Los pagos anulados se consultan en los otros historiales.</p>
+          <p>El Excel oficial incluye todos los años, con una hoja de detalle de pagos. Refleja los datos del sistema; no modifica pagos. El sistema guarda el mes de inicio, no el día exacto ni las observaciones del Excel original.</p>
+          <p id="export-cuotas-status" aria-live="polite"></p>
           <p id="history-overview-status" aria-live="polite"></p>
           <p id="history-overview-total" class="history-overview-total" aria-live="polite"></p>
           <button type="button" id="history-overview-retry" class="outline" hidden>Volver a intentar</button>
@@ -271,16 +272,6 @@
             <button type="submit">Guardar monto</button>
           </form>
           <p>El monto de un año no se puede cambiar después de registrar pagos para ese año.</p>
-        </section>
-      </section>
-      <section id="view-export-cuotas" class="view" hidden>
-        <section class="card">
-          <h2>Excel de cuotas</h2>
-          <p>Descarga las cuotas registradas con el formato de columnas del Excel oficial, una fila por año y comprobantes por mes. La hoja de detalle incluye montos, pagos anulados y pagos sin mes aplicado.</p>
-          <p>El sistema guarda el mes de inicio, no el día exacto de ingreso. Las observaciones del Excel original no están guardadas y no se incluyen.</p>
-          <p>El archivo refleja los datos actuales del sistema; no importa ni modifica pagos. Contiene datos personales.</p>
-          <button type="button" id="export-cuotas" class="excel">Descargar Excel de cuotas</button>
-          <p id="export-cuotas-status" aria-live="polite"></p>
         </section>
       </section>
       <section id="view-access" class="view" hidden>

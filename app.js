@@ -20,7 +20,6 @@ let historyYearPayments = null;
 let historyOverviewVersion = 0;
 let historyOverviewPayments = null;
 let historyOverviewLoading = false;
-let historyOverviewExporting = false;
 let receiptsVersion = 0;
 let receipts = null;
 let receiptSort = { key: 'comprobante', direction: 'asc' };
@@ -101,7 +100,6 @@ function clearHistoryOverview() {
   historyOverviewVersion++;
   historyOverviewPayments = null;
   historyOverviewLoading = false;
-  updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
   $('#history-overview-status').textContent = '';
   $('#history-overview-total').textContent = '';
@@ -124,10 +122,6 @@ function overviewRows(year) {
     }
     return { neighbor, months, total };
   });
-}
-
-function updateOverviewExportButton() {
-  $('#export-history-overview').disabled = !historyOverviewPayments || historyOverviewExporting;
 }
 
 function renderHistoryOverview() {
@@ -168,7 +162,6 @@ function renderHistoryOverview() {
     : 'No hay vecinos registrados.';
   const total = overview.reduce((sum, item) => sum + item.total, 0);
   $('#history-overview-total').textContent = `Monto recaudado aplicado a cuotas de ${year}: ${money.format(total)}.`;
-  updateOverviewExportButton();
 }
 
 async function loadHistoryOverview() {
@@ -177,7 +170,6 @@ async function loadHistoryOverview() {
   if (!activeSession) return;
   historyOverviewPayments = null;
   historyOverviewLoading = true;
-  updateOverviewExportButton();
   $('#history-overview-rows').replaceChildren();
   $('#history-overview-total').textContent = '';
   $('#history-overview-status').textContent = 'Cargando historial general…';
@@ -1096,6 +1088,8 @@ $('#treasury-menu').addEventListener('click', event => {
   }
 });
 
+$('#open-access').addEventListener('click', () => showView('access'));
+
 $('#neighbors-sort-headers').addEventListener('click', event => {
   const button = event.target.closest('[data-neighbor-sort]');
   if (button) sortNeighborsBy(button.dataset.neighborSort);
@@ -1178,35 +1172,6 @@ $('#export-receipts').addEventListener('click', async () => {
     $('#export-receipts').disabled = !receipts?.length;
   }
 });
-$('#export-history-overview').addEventListener('click', async () => {
-  if (!session || !historyOverviewPayments || historyOverviewExporting) return;
-  const activeSession = session;
-  const data = historyOverviewPayments;
-  const version = historyOverviewVersion;
-  const year = $('#history-overview-year').value;
-  historyOverviewExporting = true;
-  updateOverviewExportButton();
-  message.hidden = true;
-  try {
-    const buffer = await ExportarVecinos.crearArchivoPagosPorAnio(year, overviewRows(year));
-    if (session !== activeSession || historyOverviewVersion !== version || historyOverviewPayments !== data
-      || $('#history-overview-year').value !== year) {
-      throw new Error('La sesión o los datos cambiaron. Vuelve a intentar la descarga.');
-    }
-    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `pagos-por-ano-${year}.xlsx`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  } catch (error) {
-    if (session === activeSession) showMessage(`No se pudo descargar el Excel: ${error.message}`, true);
-  } finally {
-    historyOverviewExporting = false;
-    updateOverviewExportButton();
-  }
-});
-
 $('#logout').addEventListener('click', async () => {
   const previous = session;
   session = null;

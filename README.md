@@ -59,7 +59,7 @@ script no las modifica.
    de funcionar. Los pagos y vecinos registrados se conservan.
    El script requiere `pgcrypto` en el esquema `extensions` de Supabase.
 2. Publica el sitio actualizado. Una persona autorizada de tesorería debe
-   iniciar sesión y definir la primera clave en **Clave común de vecinos**.
+   iniciar sesión y definir la primera clave desde **Inicio → Acceso vecinos**.
    Después puede cambiarla cuando quiera desde el mismo lugar y comunicarla por
    el canal que elija. Solo tesorería puede cambiar la clave.
 3. Cada vecino registrado ingresa su RUT y esa clave; no necesita una cuenta
@@ -118,7 +118,7 @@ a todos.
   Los encabezados permiten ordenar el listado y el Excel seguirá ese orden.
   El botón **Repetidos** muestra los números de pagos vigentes asociados a
   distintos vecinos; no considera pagos anulados.
-- **Excel de cuotas** descarga una hoja con el formato de socio, nombre, RUT,
+- **Pagos por Año → Excel Oficial Tesorería** descarga una hoja con el formato de socio, nombre, RUT,
   inicio, año y meses del listado oficial, y otra con el detalle de pagos,
   importes y anulaciones. Usa los meses realmente registrados, no recalcula ni
   importa datos; varios comprobantes se separan con `/`. Incluye años sin cobro
@@ -163,7 +163,7 @@ a todos.
   aunque el pago se haya realizado en otro año.
   La vista consulta el historial de cada vecino al abrirse y permite cambiar de
   año de 2014 a 2027 sin volver a consultarlo; en pantallas pequeñas se desplaza
-  horizontalmente. La tabla del año seleccionado puede descargarse en Excel.
+  horizontalmente. El botón **Excel Oficial Tesorería** descarga todos los años.
 - Los pagos históricos pueden tener fecha desconocida y un comprobante repetido.
   Cuando no hay fecha registrada, esta se muestra en blanco.
   Los pagos nuevos siguen exigiendo fecha y comprobante único entre ellos.
