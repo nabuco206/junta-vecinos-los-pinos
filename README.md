@@ -59,7 +59,7 @@ script no las modifica.
    de funcionar. Los pagos y vecinos registrados se conservan.
    El script requiere `pgcrypto` en el esquema `extensions` de Supabase.
 2. Publica el sitio actualizado. Una persona autorizada de tesorería debe
-   iniciar sesión y definir la primera clave desde **Inicio → Acceso vecinos**.
+   iniciar sesión y definir la primera clave desde **Inicio → Actualizar clave de acceso vecinos**.
    Después puede cambiarla cuando quiera desde el mismo lugar y comunicarla por
    el canal que elija. Solo tesorería puede cambiar la clave.
 3. Cada vecino registrado ingresa su RUT y esa clave; no necesita una cuenta
