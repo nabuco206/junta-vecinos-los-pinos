@@ -75,7 +75,8 @@ test('exporta cuotas por años consecutivos y conserva detalles parciales y anul
       { id: 2, vecino_id: 1, comprobante: '002', fecha: '2021-01-01', monto: 600, aplicaciones: [{ mes: '2018-03-01', monto: 600 }, { mes: '2022-01-01', monto: 100 }] },
       { id: 3, vecino_id: 1, comprobante: '003', monto: 500, anulado_en: '2022-01-01', aplicaciones: [{ mes: '2018-03-01', monto: 500 }] },
       { id: 4, vecino_id: 1, comprobante: null, monto: 200, aplicaciones: [] },
-      { id: 5, vecino_id: 2, comprobante: '999', monto: 500, aplicaciones: [] }
+      { id: 5, vecino_id: 2, comprobante: '999', monto: 500, aplicaciones: [] },
+      { id: 6, vecino_id: 1, comprobante: '456', monto: 1000, aplicaciones: [{ mes: '2022-02-01', monto: 1000 }] }
     ]
   }, 2021));
   const hoja = libro.getWorksheet('CUOTAS UNIVERSAL');
@@ -87,8 +88,12 @@ test('exporta cuotas por años consecutivos y conserva detalles parciales y anul
   assert.equal(hoja.getCell('I2').value, '001 / 002');
   assert.equal(hoja.getCell('S3').value, 'Año sin cobro');
   assert.equal(hoja.getCell('G6').value, '002');
+  assert.equal(hoja.getCell('H6').value, 456);
+  assert.equal(hoja.getColumn(3).width, 39);
+  assert.equal(hoja.getCell('C1').font.bold, true);
+  assert.equal(hoja.getCell('G2').border.left.style, 'thin');
   const detalle = libro.getWorksheet('Detalle de pagos');
-  assert.equal(detalle.rowCount, 6);
+  assert.equal(detalle.rowCount, 7);
   assert.equal(detalle.getCell('G5').value, 'Anulado');
   assert.equal(detalle.getCell('I2').value, 400);
   assert.equal(detalle.getCell('I3').value, 600);

@@ -65,12 +65,12 @@ export async function crearArchivoCuotas(datos, anioActual = new Date().getFullY
   const hoja = libro.addWorksheet('CUOTAS UNIVERSAL', { views: [{ state: 'frozen', ySplit: 1 }] });
   const detalle = libro.addWorksheet('Detalle de pagos', { views: [{ state: 'frozen', ySplit: 1 }] });
   hoja.columns = [
-    { header: '', width: 3 }, { header: 'Nº SOCIO', width: 14 },
-    { header: 'NOMBRE', width: 35 }, { header: 'RUT', width: 18 },
-    { header: 'INGRESO', width: 16 }, { header: 'AÑO', width: 10 },
+    { header: '', width: 4 }, { header: 'Nº SOCIO', width: 9.3 },
+    { header: 'NOMBRE', width: 39 }, { header: 'RUT', width: 37.4 },
+    { header: 'INGRESO', width: 28.1 }, { header: 'AÑO', width: 21.3 },
     ...['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
-      .map(header => ({ header, width: 16 })),
-    { header: 'OBSERVACION', width: 30 }
+      .map(header => ({ header, width: 11.3 })),
+    { header: 'OBSERVACION', width: 27.1 }
   ];
   detalle.columns = [
     { header: 'Vecino', width: 35 }, { header: 'RUT', width: 18 },
@@ -79,7 +79,7 @@ export async function crearArchivoCuotas(datos, anioActual = new Date().getFullY
     { header: 'Estado', width: 14 }, { header: 'Mes aplicado', width: 16 },
     { header: 'Monto aplicado', width: 18 }
   ];
-  hoja.getRow(1).font = { bold: true };
+  hoja.getRow(1).height = 21.75;
   detalle.getRow(1).font = { bold: true };
   const vecinos = new Map(datos.vecinos.map(v => [String(v.id), v]));
   const pagosPorVecino = new Map();
@@ -125,17 +125,32 @@ export async function crearArchivoCuotas(datos, anioActual = new Date().getFullY
     if (primerAnio < 2000 || ultimoAnio > 2100) throw new Error('Hay años fuera del rango permitido.');
     for (let anio = primerAnio; anio <= ultimoAnio; anio++) {
       const valoresMeses = Array.from({ length: 12 }, (_, i) =>
-        (meses.get(`${anio}-${String(i + 1).padStart(2, '0')}-01`) || []).join(' / ')
+        (meses.get(`${anio}-${String(i + 1).padStart(2, '0')}-01`) || [])
       );
       const observacion = [
         vecino.no_paga_cuota ? 'No paga cuota' : '',
         [2019, 2020].includes(anio) ? 'Año sin cobro' : ''
       ].filter(Boolean).join('; ');
       const [a, m] = vecino.inicio.split('-');
-      hoja.addRow(['', vecino.numero_socio ?? '', vecino.nombre, rut.replace(/,/g, '.'),
-        `${m}/${a}`, anio, ...valoresMeses, observacion]);
+      const row = hoja.addRow(['', vecino.numero_socio ?? '', vecino.nombre, rut.replace(/,/g, '.'),
+        `${m}/${a}`, anio, ...valoresMeses.map(lista => {
+          if (lista.length === 1 && /^(0|[1-9]\d*)$/.test(lista[0]) && Number.isSafeInteger(Number(lista[0]))) {
+            return Number(lista[0]);
+          }
+          return lista.join(' / ');
+        }), observacion]);
+      const monthLines = Math.max(1, ...valoresMeses.map(lista => Math.ceil(lista.join(' / ').length / 11)));
+      row.height = 21 * monthLines;
     }
   }
-  hoja.eachRow(row => row.eachCell(cell => { cell.alignment = { vertical: 'top', wrapText: true }; }));
+  const border = { style: 'thin', color: { argb: 'FF000000' } };
+  hoja.eachRow(row => {
+    for (let column = 2; column <= 19; column++) {
+      const cell = row.getCell(column);
+      cell.font = { name: 'Calibri', size: column === 2 ? 12 : 16, bold: row.number === 1 };
+      cell.border = { top: border, bottom: border, left: border, right: border };
+      cell.alignment = { vertical: 'middle', horizontal: [2, 6].includes(column) ? 'center' : 'left', wrapText: true };
+    }
+  });
   return libro.xlsx.writeBuffer();
 }

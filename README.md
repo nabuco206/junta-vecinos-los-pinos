@@ -123,8 +123,9 @@ a todos.
   importes y anulaciones. Usa los meses realmente registrados, no recalcula ni
   importa datos; varios comprobantes se separan con `/`. Incluye años sin cobro
   y pagos anteriores al inicio si existen. Las observaciones del Excel original
-  no se importan. Para habilitarlo, ejecuta `supabase/exportar_cuotas.sql` una
-  vez en Supabase después de `numero_socio.sql` y `pagos_historicos.sql`.
+  no se importan y el ingreso se muestra como mes/año porque el sistema no
+  guarda el día exacto. Para habilitarlo, ejecuta `supabase/exportar_cuotas.sql`
+  una vez en Supabase después de `numero_socio.sql` y `pagos_historicos.sql`.
 - Desde **Comprobantes** se puede ingresar o corregir la fecha de un pago
   vigente sin cambiar sus montos ni sus meses aplicados. Requiere
   `supabase/editar_pago.sql`; los pagos anulados no se pueden modificar.

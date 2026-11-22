@@ -30,7 +30,7 @@ button.danger { background: #a42727; min-height: 34px; }
 a { color: #174bbd; }
 nav { display: flex; align-items: center; gap: 18px; }
 nav a { color: white; }
-#treasury-menu { gap: 8px; overflow-x: auto; margin: 0 0 20px; padding: 6px; background: white; border: 1px solid #e1e7f0; border-radius: 10px; }
+#treasury-menu { flex-wrap: wrap; gap: 8px; margin: 0 0 20px; padding: 6px; background: white; border: 1px solid #e1e7f0; border-radius: 10px; }
 #treasury-menu .menu-link { flex: 0 0 auto; color: #33415c; background: transparent; }
 #treasury-menu .menu-link:hover, #treasury-menu .menu-link.active { color: #173c70; background: #e8effa; }
 .view { min-width: 0; }
