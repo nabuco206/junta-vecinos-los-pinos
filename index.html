@@ -183,6 +183,7 @@
               </svg>
               Excel Oficial Tesorería
             </button>
+            <button type="button" id="monthly-payments-open" class="outline">Pagos por mes</button>
           </div>
           <p>Comprobantes y fechas de los pagos vigentes aplicados a cada mes. Una celda vacía no implica necesariamente deuda. Los pagos anulados se consultan en los otros historiales.</p>
           <p>El Excel oficial incluye todos los años, con una hoja de detalle de pagos. Refleja los datos del sistema; no modifica pagos. El sistema guarda el mes de inicio, no el día exacto ni las observaciones del Excel original.</p>
@@ -226,17 +227,6 @@
               <tbody id="receipts-list"></tbody>
             </table>
           </div>
-          <dialog id="receipt-date-dialog" class="receipts-dialog" aria-labelledby="receipt-date-title">
-            <h2 id="receipt-date-title">Ingresar fecha de pago</h2>
-            <p id="receipt-date-description"></p>
-            <p>Solo se cambiará la fecha; el monto y los meses aplicados se conservarán.</p>
-            <form id="receipt-date-form">
-              <label>Fecha de pago<input name="fecha" type="date" required></label>
-              <p id="receipt-date-error" class="error" role="alert" hidden></p>
-              <button type="submit">Guardar fecha</button>
-              <button type="button" id="receipt-date-cancel" class="outline">Cancelar</button>
-            </form>
-          </dialog>
           <dialog id="receipts-duplicates-dialog" class="receipts-dialog" aria-labelledby="receipts-duplicates-title">
             <div class="heading">
               <h2 id="receipts-duplicates-title">Comprobantes repetidos</h2>
@@ -286,6 +276,33 @@
           <p>Comunica la nueva clave a los vecinos. Sus cuentas de tesorería no cambian.</p>
         </section>
       </section>
+      <dialog id="receipt-date-dialog" class="receipts-dialog" aria-labelledby="receipt-date-title">
+        <h2 id="receipt-date-title">Ingresar fecha de pago</h2>
+        <p id="receipt-date-description"></p>
+        <p>Solo se cambiará la fecha; el monto y los meses aplicados se conservarán.</p>
+        <form id="receipt-date-form">
+          <label>Fecha de pago<input name="fecha" type="date" required></label>
+          <p id="receipt-date-error" class="error" role="alert" hidden></p>
+          <button type="submit">Guardar fecha</button>
+          <button type="button" id="receipt-date-cancel" class="outline">Cancelar</button>
+        </form>
+      </dialog>
+      <dialog id="monthly-payments-dialog" class="receipts-dialog" aria-labelledby="monthly-payments-title">
+        <h2 id="monthly-payments-title">Pagos por mes</h2>
+        <p>Se incluyen pagos vigentes según su fecha de pago, una sola vez por pago. Los pagos sin fecha no se incluyen.</p>
+        <form id="monthly-payments-form">
+          <label>Año<input name="anio" type="number" min="2000" max="2100" required></label>
+          <label>Mes<select name="mes" required>
+            <option value="01">Enero</option><option value="02">Febrero</option><option value="03">Marzo</option>
+            <option value="04">Abril</option><option value="05">Mayo</option><option value="06">Junio</option>
+            <option value="07">Julio</option><option value="08">Agosto</option><option value="09">Septiembre</option>
+            <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+          </select></label>
+          <p id="monthly-payments-status" aria-live="polite"></p>
+          <button type="submit" class="excel" disabled>Descargar Excel</button>
+          <button type="button" id="monthly-payments-close" class="outline">Cerrar</button>
+        </form>
+      </dialog>
     </div>
   </main>
 </body>

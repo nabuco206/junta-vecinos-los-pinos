@@ -26,6 +26,9 @@ let receiptSort = { key: 'comprobante', direction: 'asc' };
 let receiptsExporting = false;
 let editingReceiptDate = null;
 let savingReceiptDate = false;
+let monthlyPaymentsVersion = 0;
+let monthlyPayments = null;
+let monthlyExporting = false;
 let paymentEditVersion = 0;
 let paymentEditQuery = '';
 let editingPayment = null;
@@ -76,6 +79,7 @@ function setAuthenticated(authenticated) {
     $('#history-year-months').replaceChildren();
     clearHistoryOverview();
     clearReceipts();
+    clearMonthlyPayments();
     $('#history-overview-year').value = defaultOverviewYear();
     $('#payment-form').elements.vecino.replaceChildren();
     paymentEditVersion++;
@@ -146,8 +150,16 @@ function renderHistoryOverview() {
       for (const payment of payments) {
         const entry = document.createElement('div');
         entry.className = 'history-overview-entry';
-        const receipt = document.createElement('span');
+        const receipt = document.createElement(!payment.fecha && payment.comprobante ? 'button' : 'span');
         receipt.textContent = payment.comprobante || 'Sin comprobante';
+        if (!payment.fecha && payment.comprobante) {
+          receipt.type = 'button';
+          receipt.className = 'history-overview-date-link';
+          receipt.setAttribute('aria-label', `Ingresar fecha del comprobante ${payment.comprobante} de ${neighbor.nombre}, pago ${payment.id}`);
+          receipt.addEventListener('click', () => openReceiptDate({
+            comprobante: payment.comprobante, vecino: neighbor.nombre, pago: payment
+          }));
+        }
         const date = document.createElement('small');
         date.textContent = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
         entry.append(receipt, date);
@@ -375,6 +387,103 @@ function showDuplicateReceipts() {
     ? `${count} ${count === 1 ? 'número repetido' : 'números repetidos'} entre distintos vecinos.`
     : 'No hay comprobantes repetidos entre distintos vecinos.';
   $('#receipts-duplicates-dialog').showModal();
+}
+
+function clearMonthlyPayments() {
+  monthlyPaymentsVersion++;
+  monthlyPayments = null;
+  const dialog = $('#monthly-payments-dialog');
+  if (dialog.open) dialog.close();
+  $('#monthly-payments-status').textContent = '';
+  $('#monthly-payments-form').querySelector('button[type="submit"]').disabled = true;
+}
+
+function monthlyPaymentRows(year, month) {
+  const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+  return monthlyPayments.filter(item => item.pago.fecha && item.pago.fecha.startsWith(prefix) && !item.pago.anulado_en)
+    .sort((a, b) => a.pago.fecha.localeCompare(b.pago.fecha)
+      || a.vecino.localeCompare(b.vecino, 'es', { sensitivity: 'base' })
+      || String(a.pago.id).localeCompare(String(b.pago.id), 'es', { numeric: true }));
+}
+
+function renderMonthlyPayments() {
+  const form = $('#monthly-payments-form');
+  const submit = form.querySelector('button[type="submit"]');
+  if (!monthlyPayments) {
+    submit.disabled = true;
+    return;
+  }
+  const year = form.elements.anio.value;
+  const month = form.elements.mes.value;
+  if (!/^(20\d{2}|2100)$/.test(year) || !/^(0[1-9]|1[0-2])$/.test(month)) {
+    $('#monthly-payments-status').textContent = 'Selecciona un año y un mes válidos.';
+    submit.disabled = true;
+    return;
+  }
+  const rows = monthlyPaymentRows(year, month);
+  const total = rows.reduce((sum, item) => sum + Number(item.pago.monto), 0);
+  $('#monthly-payments-status').textContent = `${rows.length} ${rows.length === 1 ? 'pago' : 'pagos'}. Total de ingresos: ${money.format(total)}.`;
+  submit.disabled = monthlyExporting;
+}
+
+async function openMonthlyPayments() {
+  if (!session) return;
+  clearMonthlyPayments();
+  const activeSession = session;
+  const version = monthlyPaymentsVersion;
+  const form = $('#monthly-payments-form');
+  form.elements.anio.value = String(new Date().getFullYear());
+  form.elements.mes.value = String(new Date().getMonth() + 1).padStart(2, '0');
+  $('#monthly-payments-status').textContent = 'Cargando pagos…';
+  $('#monthly-payments-dialog').showModal();
+  const snapshot = [...neighbors];
+  try {
+    const histories = await fetchNeighborHistories(snapshot, () =>
+      session === activeSession && version === monthlyPaymentsVersion);
+    if (session !== activeSession || version !== monthlyPaymentsVersion) return;
+    monthlyPayments = snapshot.flatMap(neighbor =>
+      histories.get(String(neighbor.id)).map(pago => ({ vecino: neighbor.nombre, pago })));
+    renderMonthlyPayments();
+  } catch (error) {
+    if (session !== activeSession || version !== monthlyPaymentsVersion) return;
+    $('#monthly-payments-status').textContent = `No se pudieron cargar los pagos: ${error.message}. Cierra y vuelve a intentar.`;
+  }
+}
+
+async function exportMonthlyPayments(form) {
+  if (!session || !monthlyPayments || monthlyExporting || !form.reportValidity()) return;
+  const activeSession = session;
+  const version = monthlyPaymentsVersion;
+  const year = form.elements.anio.value;
+  const month = form.elements.mes.value;
+  if (!/^(20\d{2}|2100)$/.test(year) || !/^(0[1-9]|1[0-2])$/.test(month)) return;
+  const rows = monthlyPaymentRows(year, month).map(item => ({
+    fecha: item.pago.fecha.split('-').reverse().join('/'),
+    comprobante: item.pago.comprobante || '',
+    vecino: item.vecino,
+    monto: Number(item.pago.monto)
+  }));
+  monthlyExporting = true;
+  renderMonthlyPayments();
+  let downloadError = null;
+  try {
+    const buffer = await ExportarVecinos.crearArchivoPagosMes(rows);
+    if (session !== activeSession || version !== monthlyPaymentsVersion) return;
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pagos-${year}-${month}.xlsx`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) {
+    if (session === activeSession && version === monthlyPaymentsVersion) {
+      downloadError = `No se pudo descargar el Excel: ${error.message}`;
+    }
+  } finally {
+    monthlyExporting = false;
+    renderMonthlyPayments();
+    if (downloadError) $('#monthly-payments-status').textContent = downloadError;
+  }
 }
 
 function resetPaymentEdit() {
@@ -1045,6 +1154,7 @@ async function updateAfterSave(text) {
   }
   clearHistoryOverview();
   clearReceipts();
+  clearMonthlyPayments();
   try {
     await load();
     clearHistoryOverview();
@@ -1139,6 +1249,19 @@ $('#history-year-neighbor').addEventListener('change', () => {
 $('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
+$('#monthly-payments-open').addEventListener('click', openMonthlyPayments);
+$('#monthly-payments-form').addEventListener('input', renderMonthlyPayments);
+$('#monthly-payments-form').addEventListener('change', renderMonthlyPayments);
+$('#monthly-payments-form').addEventListener('submit', event => {
+  event.preventDefault();
+  exportMonthlyPayments(event.currentTarget);
+});
+$('#monthly-payments-close').addEventListener('click', clearMonthlyPayments);
+$('#monthly-payments-dialog').addEventListener('close', () => {
+  if ($('#monthly-payments-dialog').open) return;
+  monthlyPaymentsVersion++;
+  monthlyPayments = null;
+});
 $('#receipts-refresh').addEventListener('click', loadReceipts);
 $('#receipts-sort-headers').addEventListener('click', event => {
   const button = event.target.closest('[data-receipt-sort]');
@@ -1153,7 +1276,9 @@ $('#receipt-date-cancel').addEventListener('click', () => $('#receipt-date-dialo
 $('#receipt-date-dialog').addEventListener('cancel', event => {
   if (savingReceiptDate) event.preventDefault();
 });
-$('#receipt-date-dialog').addEventListener('close', () => { editingReceiptDate = null; });
+$('#receipt-date-dialog').addEventListener('close', () => {
+  if (!$('#receipt-date-dialog').open) editingReceiptDate = null;
+});
 $('#export-receipts').addEventListener('click', async () => {
   if (!session || !receipts?.length || receiptsExporting) return;
   const activeSession = session;

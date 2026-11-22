@@ -34,6 +34,23 @@ export async function crearArchivoComprobantes(filas) {
   return libro.xlsx.writeBuffer();
 }
 
+export async function crearArchivoPagosMes(filas) {
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet('Pagos por mes');
+  hoja.columns = [
+    { header: 'Fecha', key: 'fecha', width: 16 },
+    { header: 'Comprobante', key: 'comprobante', width: 22 },
+    { header: 'Nombre de socio', key: 'vecino', width: 40 },
+    { header: 'Monto', key: 'monto', width: 18 }
+  ];
+  hoja.getRow(1).font = { bold: true };
+  for (const fila of filas) hoja.addRow(fila);
+  const total = filas.reduce((sum, fila) => sum + fila.monto, 0);
+  const resumen = hoja.addRow(['', '', 'Total de ingresos', total]);
+  resumen.font = { bold: true };
+  return libro.xlsx.writeBuffer();
+}
+
 export async function crearArchivoCuotas(datos, anioActual = new Date().getFullYear()) {
   if (!Array.isArray(datos?.vecinos) || !Array.isArray(datos?.pagos)) {
     throw new Error('La respuesta de cuotas está incompleta.');

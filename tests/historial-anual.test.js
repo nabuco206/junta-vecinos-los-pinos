@@ -7,16 +7,17 @@ class Element {
   constructor(text = '', value = '') {
     this.children = [];
     this.dataset = {};
+    this.listeners = {};
     this.value = value;
     this.textContent = text;
-    this.elements = { anio: {}, fecha: {} };
+    this.elements = { anio: {}, fecha: {}, mes: {} };
     this.className = '';
     this.classList = {
       add: name => { this.className = `${this.className} ${name}`.trim(); },
       toggle() {}
     };
   }
-  addEventListener() {}
+  addEventListener(name, callback) { this.listeners[name] = callback; }
   setAttribute() {}
   add(child) { this.children.push(child); }
   append(...children) { this.children.push(...children); }
@@ -247,6 +248,7 @@ function setup(payments, year = '2024') {
     querySelectorAll() { return []; },
     createElement() { return new Element(); }
   };
+  document.querySelector('#monthly-payments-form').querySelector = () => new Element();
   const context = createContext({ document, Option: Element, setTimeout, clearTimeout });
   runInContext(readFileSync(new URL('../app.js', import.meta.url), 'utf8'), context);
   context.testPayments = payments;
@@ -363,6 +365,61 @@ test('la vista general muestra cada comprobante vigente y deja en blanco las fec
   assert.equal(app.document.querySelector('#history-overview-total').textContent, 'Monto recaudado aplicado a cuotas de 2023: $0.');
   runInContext('clearHistoryOverview()', app.context);
   assert.equal(app.document.querySelector('#history-overview-total').textContent, '');
+});
+
+test('el comprobante sin fecha abre el diálogo de edición con su pago exacto', () => {
+  const app = setup([]);
+  app.context.overview = {
+    snapshot: [{ id: 1, nombre: 'Ana' }],
+    paymentsByNeighbor: new Map([['1', [
+      { id: 12, comprobante: '008', fecha: null, monto: 1000, aplicaciones: [{ mes: '2025-01-01', monto: 1000 }] },
+      { id: 13, comprobante: '008', fecha: '2025-02-01', monto: 500, aplicaciones: [{ mes: '2025-01-01', monto: 500 }] }
+    ]]])
+  };
+  runInContext('session = {}; historyOverviewPayments = overview', app.context);
+  app.document.querySelector('#history-overview-year').value = '2025';
+  runInContext('renderHistoryOverview()', app.context);
+  const entries = app.document.querySelector('#history-overview-rows').children[0].children[1].children;
+  assert.equal(typeof entries[0].children[0].listeners.click, 'function');
+  assert.equal(entries[1].children[0].listeners.click, undefined);
+  entries[0].children[0].listeners.click();
+  assert.equal(app.document.querySelector('#receipt-date-dialog').open, true);
+  assert.match(app.document.querySelector('#receipt-date-description').textContent, /008.*Ana.*#12/);
+  assert.equal(runInContext('editingReceiptDate.pago.id', app.context), 12);
+});
+
+test('pagos por mes usa fecha del pago y suma una sola vez, omitiendo anulados y sin fecha', async () => {
+  const app = setup([]);
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }, { id: 2, nombre: 'Luis' }];
+  app.context.mockRpc = async (_, args) => args.p_vecino === 1 ? [
+    { id: 1, comprobante: '001', fecha: '2025-04-03', monto: 9000, aplicaciones: [{ mes: '2024-01-01' }, { mes: '2024-02-01' }] },
+    { id: 2, comprobante: '2', fecha: '2025-04-04', monto: 600, anulado_en: '2025-05-01', aplicaciones: [] },
+    { id: 3, comprobante: '3', fecha: null, monto: 1000, aplicaciones: [{ mes: '2025-04-01' }] },
+    { id: 4, comprobante: '4', fecha: '2025-05-01', monto: 700, aplicaciones: [] }
+  ] : [{ id: 5, comprobante: null, fecha: '2025-04-02', monto: 500, aplicaciones: [] }];
+  runInContext('session = {}; neighbors = neighborList; rpc = mockRpc', app.context);
+  await runInContext('openMonthlyPayments()', app.context);
+  const form = app.document.querySelector('#monthly-payments-form');
+  form.elements.anio.value = '2025';
+  form.elements.mes.value = '04';
+  runInContext('renderMonthlyPayments()', app.context);
+  assert.equal(app.document.querySelector('#monthly-payments-status').textContent, '2 pagos. Total de ingresos: $9.500.');
+  assert.deepEqual(Array.from(runInContext("monthlyPaymentRows('2025','04')", app.context), x => x.pago.id), [5, 1]);
+  form.elements.mes.value = '06';
+  runInContext('renderMonthlyPayments()', app.context);
+  assert.equal(app.document.querySelector('#monthly-payments-status').textContent, '0 pagos. Total de ingresos: $0.');
+});
+
+test('cerrar el informe mensual descarta una carga pendiente', async () => {
+  const app = setup([]);
+  let resolve;
+  app.context.mockRpc = () => new Promise(done => { resolve = done; });
+  runInContext('session = {}; rpc = mockRpc', app.context);
+  const loading = runInContext('openMonthlyPayments()', app.context);
+  runInContext('clearMonthlyPayments()', app.context);
+  resolve([{ id: 1, fecha: '2025-04-01', monto: 1000 }]);
+  await loading;
+  assert.equal(runInContext('monthlyPayments', app.context), null);
 });
 
 test('la carga general limita consultas, ignora respuestas antiguas y permite reintentar', async () => {

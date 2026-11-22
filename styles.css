@@ -101,6 +101,7 @@ th[aria-sort="descending"] .table-sort::after { content: ' ▼'; }
 .history-overview-table tbody th { background: white; }
 .history-overview-table small { display: block; color: #566176; font-size: .72rem; }
 .history-overview-table .history-overview-entry + .history-overview-entry { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e1e7f0; }
+.history-overview-date-link, .history-overview-date-link:hover { padding: 0; min-height: 0; background: transparent; color: #174bbd; text-decoration: underline; }
 .history-overview-wrap { margin-top: 12px; }
 .history-overview-total, .current-fee { color: #173c70; font-weight: 700; font-size: 1.1rem; }
 .history-overview-wrap th:first-child { position: sticky; left: 0; z-index: 1; }
