@@ -1,4 +1,5 @@
--- Ejecutar solo en una base de prueba después de cuotas.sql y validar_rut.sql.
+-- Ejecutar solo en una base de prueba después de cuotas.sql,
+-- validar_rut.sql y formato_rut.sql.
 begin;
 
 insert into auth.users(id, email)
@@ -16,13 +17,25 @@ begin
     if cuotas_privado.rut_valido(valor) then raise exception 'Se aceptó un RUT inválido: %', valor; end if;
   end loop;
   if cuotas_privado.rut_valido(null) then raise exception 'Se aceptó un RUT nulo'; end if;
+  if cuotas_privado.rut_formatear('123456785') <> '12.345.678-5'
+    or cuotas_privado.rut_formatear('12,345,678-5') <> '12.345.678-5'
+    or cuotas_privado.rut_formatear('6-k') <> '6-K' then
+    raise exception 'El formato estándar del RUT es incorrecto';
+  end if;
+  if cuotas_privado.rut_formatear('RUT desconocido') <> 'RUT desconocido' then
+    raise exception 'Se alteró un RUT inválido';
+  end if;
 end;
 $$;
 
 set local role authenticated;
-select public.cuotas_crear_vecino('Ana', '12.345.678-5', '2026-01-01');
+select public.cuotas_crear_vecino('Ana', '123456785', '2026-01-01');
 do $$
 begin
+  if not exists (select 1 from cuotas_privado.vecinos
+    where nombre = 'Ana' and rut = '12.345.678-5') then
+    raise exception 'El alta no guardó el RUT con formato estándar';
+  end if;
   begin
     perform public.cuotas_crear_vecino('Luis', '12.345.678-K', '2026-01-01');
     raise exception 'Se guardó un RUT inválido';
@@ -43,8 +56,8 @@ begin
     if sqlerrm <> 'Ingresa un RUT válido con su dígito verificador' then raise; end if;
   end;
   perform public.cuotas_editar_vecino(vecino, 'Ana', '6-k', '2026-01-01');
-  if not exists (select 1 from cuotas_privado.vecinos where id = vecino and rut = '6-k') then
-    raise exception 'No se guardó un RUT válido con K';
+  if not exists (select 1 from cuotas_privado.vecinos where id = vecino and rut = '6-K') then
+    raise exception 'No se guardó el RUT con K en formato estándar';
   end if;
 end;
 $$;

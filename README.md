@@ -29,9 +29,11 @@ las funciones correspondientes.
 5. Ejecuta `supabase/historial_vecino.sql` para habilitar el historial completo
    de pagos por vecino. También se debe ejecutar en instalaciones existentes.
 6. Ejecuta `supabase/validar_rut.sql` para validar el RUT al guardar o cambiar
-   vecinos. En instalaciones existentes, actualiza también `portal_vecinos.sql`
-   para permitir consultar RUT válidos más cortos. No se modifican los RUT ya
-   guardados.
+   vecinos. Luego ejecuta `supabase/formato_rut.sql` para estandarizar los RUT
+   válidos como `12.345.678-5` y exigir ese formato en futuras altas y cambios.
+   Los RUT inválidos quedan intactos; si la normalización detecta identidades
+   duplicadas, la operación se revierte. En instalaciones existentes, actualiza
+   también `portal_vecinos.sql` para permitir consultar RUT válidos más cortos.
 7. Ejecuta `supabase/comprobante.sql` para exigir el número de comprobante en
    cada pago nuevo; luego vuelve a ejecutar `historial_vecino.sql` y
    `portal_vecinos.sql`. Los pagos anteriores quedan sin comprobante.

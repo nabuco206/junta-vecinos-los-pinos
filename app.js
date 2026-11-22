@@ -665,17 +665,25 @@ function cell(row, value) {
 }
 
 function validRut(value) {
-  const formatted = value.toUpperCase().replace(/\s/g, '');
-  if (!/^(\d{1,8}|\d{1,3}\.\d{3}|\d{1,2}\.\d{3}\.\d{3})-?[\dK]$/.test(formatted)) return false;
-  const normalized = formatted.replace(/[.-]/g, '');
+  return formatRut(value) !== null;
+}
+
+function formatRut(value) {
+  const normalized = value.toUpperCase().replace(/[\s.,-]/g, '');
+  if (!/^\d{1,8}[\dK]$/.test(normalized)) return null;
   const body = normalized.slice(0, -1);
-  if (Number(body) === 0) return false;
+  if (Number(body) === 0) return null;
   let sum = 0;
   for (let i = 0; i < body.length; i++) {
     sum += Number(body[body.length - 1 - i]) * (2 + i % 6);
   }
   const digit = (11 - sum % 11) % 11;
-  return normalized.at(-1) === (digit === 10 ? 'K' : String(digit));
+  if (normalized.at(-1) !== (digit === 10 ? 'K' : String(digit))) return null;
+  const groups = [];
+  for (let end = body.length; end > 0; end -= 3) {
+    groups.unshift(body.slice(Math.max(0, end - 3), end));
+  }
+  return `${groups.join('.')}-${normalized.at(-1)}`;
 }
 
 function resetNeighborForm() {
@@ -1189,11 +1197,13 @@ $('#logout').addEventListener('click', async () => {
 $('#neighbor-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = event.currentTarget;
-  if (!validRut(form.elements.rut.value)) {
+  const rut = formatRut(form.elements.rut.value);
+  if (!rut) {
     showMessage('Ingresa un RUT válido con su dígito verificador.', true);
     form.elements.rut.focus();
     return;
   }
+  form.elements.rut.value = rut;
   const neighbor = editingNeighbor;
   if (neighbor && form.elements.inicio.value !== neighbor.inicio
     && !confirm('Cambiar el mes de inicio puede modificar la deuda. Los pagos existentes no se reasignarán. ¿Continuar?')) return;
@@ -1201,7 +1211,7 @@ $('#neighbor-form').addEventListener('submit', event => {
     && !confirm('Cambiar esta opción afecta todas las cuotas, también las anteriores. Los pagos registrados se conservan. ¿Continuar?')) return;
   withBusy(form, async () => {
     const parameters = {
-      p_nombre: form.elements.nombre.value.trim(), p_rut: form.elements.rut.value.trim(),
+      p_nombre: form.elements.nombre.value.trim(), p_rut: rut,
       p_inicio: `${form.elements.inicio.value}-01`,
       p_no_paga_cuota: form.elements.no_paga_cuota.checked,
       p_numero_socio: form.elements.numero_socio.value.trim() || null
@@ -1230,6 +1240,10 @@ $('#neighbor-form').addEventListener('submit', event => {
     resetNeighborForm();
     await updateAfterSave(neighbor ? 'Datos del vecino modificados.' : 'Vecino agregado.');
   });
+});
+$('#neighbor-form [name="rut"]').addEventListener('blur', event => {
+  const formatted = formatRut(event.currentTarget.value);
+  if (formatted) event.currentTarget.value = formatted;
 });
 
 $('#neighbor-cancel').addEventListener('click', () => {
