@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { crearArchivo, crearArchivoPagosPorAnio, crearArchivoComprobantes } from '../src/exportar-vecinos.js';
+import { crearArchivo, crearArchivoPagosPorAnio, crearArchivoComprobantes, crearArchivoCuotas } from '../src/exportar-vecinos.js';
 
 async function leerArchivo(vecinos) {
   const libro = new ExcelJS.Workbook();
@@ -61,4 +61,41 @@ test('exporta el año y los doce meses con comprobantes y fechas como texto', as
   assert.equal(hoja.getCell('C3').value, '');
   assert.equal(hoja.getCell('M3').value, 'Sin comprobante');
   assert.equal(hoja.getCell('A4').value, 'Otro');
+});
+
+test('exporta cuotas por años consecutivos y conserva detalles parciales y anulados', async () => {
+  const libro = new ExcelJS.Workbook();
+  await libro.xlsx.load(await crearArchivoCuotas({
+    vecinos: [
+      { id: 1, nombre: '=Ana', rut: '1,234.567-8', numero_socio: '001', inicio: '2018-03-01' },
+      { id: 2, nombre: 'Sin RUT', rut: '', inicio: '2018-01-01' }
+    ],
+    pagos: [
+      { id: 1, vecino_id: 1, comprobante: '001', fecha: null, monto: 400, aplicaciones: [{ mes: '2018-03-01', monto: 400 }] },
+      { id: 2, vecino_id: 1, comprobante: '002', fecha: '2021-01-01', monto: 600, aplicaciones: [{ mes: '2018-03-01', monto: 600 }, { mes: '2022-01-01', monto: 100 }] },
+      { id: 3, vecino_id: 1, comprobante: '003', monto: 500, anulado_en: '2022-01-01', aplicaciones: [{ mes: '2018-03-01', monto: 500 }] },
+      { id: 4, vecino_id: 1, comprobante: null, monto: 200, aplicaciones: [] },
+      { id: 5, vecino_id: 2, comprobante: '999', monto: 500, aplicaciones: [] }
+    ]
+  }, 2021));
+  const hoja = libro.getWorksheet('CUOTAS UNIVERSAL');
+  assert.deepEqual(hoja.getRow(1).values.slice(2), ['Nº SOCIO', 'NOMBRE', 'RUT', 'INGRESO', 'AÑO', 'ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC', 'OBSERVACION']);
+  assert.deepEqual(hoja.getRows(2, 5).map(row => row.getCell(6).value), [2018, 2019, 2020, 2021, 2022]);
+  assert.equal(hoja.getCell('C2').value, '=Ana');
+  assert.equal(hoja.getCell('C2').formula, undefined);
+  assert.equal(hoja.getCell('D2').value, '1.234.567-8');
+  assert.equal(hoja.getCell('I2').value, '001 / 002');
+  assert.equal(hoja.getCell('S3').value, 'Año sin cobro');
+  assert.equal(hoja.getCell('G6').value, '002');
+  const detalle = libro.getWorksheet('Detalle de pagos');
+  assert.equal(detalle.rowCount, 6);
+  assert.equal(detalle.getCell('G5').value, 'Anulado');
+  assert.equal(detalle.getCell('I2').value, 400);
+  assert.equal(detalle.getCell('I3').value, 600);
+  assert.equal(detalle.getCell('H6').value, '');
+});
+
+test('rechaza datos incompletos en vez de exportar un historial parcial', async () => {
+  await assert.rejects(() => crearArchivoCuotas({ vecinos: [], pagos: [{ vecino_id: 5, aplicaciones: [] }] }, 2025), /sin vecino/);
+  await assert.rejects(() => crearArchivoCuotas({ vecinos: [{ id: 1, rut: '1-9', inicio: '2025-01-01' }], pagos: [{ vecino_id: 1 }] }, 2025), /aplicaciones/);
 });

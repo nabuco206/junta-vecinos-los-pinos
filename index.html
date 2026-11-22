@@ -31,6 +31,7 @@
         <button type="button" class="menu-link" data-view="history-year">Historial de pagos 2</button>
         <button type="button" class="menu-link" data-view="history-overview">Pagos por Año</button>
         <button type="button" class="menu-link" data-view="receipts">Comprobantes</button>
+        <button type="button" class="menu-link" data-view="export-cuotas">Excel de cuotas</button>
         <button type="button" class="menu-link" data-view="dues">Valor Cuota</button>
         <button type="button" class="menu-link" data-view="access">Acceso vecinos</button>
       </nav>
@@ -270,6 +271,15 @@
             <button type="submit">Guardar monto</button>
           </form>
           <p>El monto de un año no se puede cambiar después de registrar pagos para ese año.</p>
+        </section>
+        <section id="view-export-cuotas" class="view" hidden>
+          <section class="card">
+            <h2>Excel de cuotas</h2>
+            <p>Descarga las cuotas registradas para todos los vecinos, con una fila por año y comprobantes por mes. La hoja de detalle incluye montos, pagos anulados y pagos sin mes aplicado.</p>
+            <p>El archivo refleja los datos actuales del sistema; no importa ni modifica pagos. Contiene datos personales.</p>
+            <button type="button" id="export-cuotas" class="excel">Descargar Excel de cuotas</button>
+            <p id="export-cuotas-status" aria-live="polite"></p>
+          </section>
         </section>
       </section>
       <section id="view-access" class="view" hidden>

@@ -118,6 +118,13 @@ a todos.
   Los encabezados permiten ordenar el listado y el Excel seguirá ese orden.
   El botón **Repetidos** muestra los números de pagos vigentes asociados a
   distintos vecinos; no considera pagos anulados.
+- **Excel de cuotas** descarga una hoja con el formato de socio, nombre, RUT,
+  inicio, año y meses del listado oficial, y otra con el detalle de pagos,
+  importes y anulaciones. Usa los meses realmente registrados, no recalcula ni
+  importa datos; varios comprobantes se separan con `/`. Incluye años sin cobro
+  y pagos anteriores al inicio si existen. Las observaciones del Excel original
+  no se importan. Para habilitarlo, ejecuta `supabase/exportar_cuotas.sql` una
+  vez en Supabase después de `numero_socio.sql` y `pagos_historicos.sql`.
 - Desde **Comprobantes** se puede ingresar o corregir la fecha de un pago
   vigente sin cambiar sus montos ni sus meses aplicados. Requiere
   `supabase/editar_pago.sql`; los pagos anulados no se pueden modificar.

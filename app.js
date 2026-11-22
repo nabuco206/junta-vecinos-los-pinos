@@ -89,6 +89,7 @@ function setAuthenticated(authenticated) {
     $('#fee-list').replaceChildren();
     $('#fee-list-table').hidden = true;
     $('#fee-list-status').textContent = '';
+    $('#export-cuotas-status').textContent = '';
     $('#summary-neighbors').textContent = '—';
     $('#summary-paid').textContent = '—';
     $('#summary-debt').textContent = '—';
@@ -1291,6 +1292,37 @@ $('#export-neighbors').addEventListener('click', async event => {
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (error) {
     showMessage(`No se pudo descargar el Excel: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$('#export-cuotas').addEventListener('click', async event => {
+  if (!session) return;
+  const button = event.currentTarget;
+  let activeSession = session;
+  button.disabled = true;
+  $('#export-cuotas-status').textContent = 'Preparando Excel…';
+  try {
+    await accessToken();
+    activeSession = session;
+    const data = await rpc('cuotas_exportar_cuotas', {});
+    if (session !== activeSession) return;
+    const buffer = await ExportarVecinos.crearArchivoCuotas(data);
+    if (session !== activeSession) return;
+    const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'cuotas-universal.xlsx';
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    $('#export-cuotas-status').textContent = 'Excel preparado con los datos del sistema.';
+  } catch (error) {
+    if (session === activeSession) {
+      $('#export-cuotas-status').textContent = error.code === 'PGRST202'
+        ? 'Para habilitar la descarga, ejecuta supabase/exportar_cuotas.sql en Supabase.'
+        : `No se pudo descargar el Excel: ${error.message}`;
+    }
   } finally {
     button.disabled = false;
   }
