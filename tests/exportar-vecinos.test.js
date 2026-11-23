@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import ExcelJS from 'exceljs';
-import { crearArchivo, crearArchivoComprobantes, crearArchivoCuotas, crearArchivoPagosMes } from '../src/exportar-vecinos.js';
+import { crearArchivo, crearArchivoComprobantes, crearArchivoCuotas, crearArchivoPagosMes, crearInformePagosMes } from '../src/exportar-vecinos.js';
 
 async function leerArchivo(vecinos) {
   const libro = new ExcelJS.Workbook();
@@ -57,6 +57,34 @@ test('exporta pagos mensuales con importe total y mantiene comprobantes como tex
   const vacio = new ExcelJS.Workbook();
   await vacio.xlsx.load(await crearArchivoPagosMes([]));
   assert.equal(vacio.getWorksheet('Pagos por mes').getCell('D2').value, 0);
+});
+
+test('genera informe imprimible por folio, con total y sin perder pagos', async () => {
+  const libro = new ExcelJS.Workbook();
+  await libro.xlsx.load(await crearInformePagosMes([
+    { fecha: '03/01/2026', comprobante: '520', vecino: '=Ana', monto: 12000 },
+    { fecha: '02/01/2026', comprobante: '002', vecino: 'Luis', monto: 500 },
+    { fecha: '04/01/2026', comprobante: '', vecino: 'Pedro', monto: 1000 }
+  ], '2026', '01'));
+  const hoja = libro.getWorksheet('Informe tesorería');
+  assert.equal(hoja.getCell('A1').value, 'JUNTA DE VECINOS Nº 34');
+  assert.equal(hoja.getCell('C1').value, 'TESORERÍA ENERO 2026');
+  assert.deepEqual(hoja.getRow(4).values.slice(1), ['FECHA', 'FOLIO', 'NOMBRE SOCIO', 'INGRESO']);
+  assert.deepEqual(hoja.getRow(5).values.slice(1), ['02-01-2026', '002', 'Luis', 500]);
+  assert.deepEqual(hoja.getRow(6).values.slice(1), ['03-01-2026', '520', '=Ana', 12000]);
+  assert.equal(hoja.getCell('C6').formula, undefined);
+  assert.equal(hoja.getCell('C7').value, 'Pedro');
+  assert.equal(hoja.getCell('C37').value, 'TOTAL');
+  assert.equal(hoja.getCell('D37').value, 13500);
+  assert.equal(hoja.getCell('A36').border.bottom.style, 'thin');
+  assert.equal(hoja.pageSetup.printArea, 'A1:D37');
+  assert.equal(hoja.pageSetup.fitToWidth, 1);
+  const muchos = new ExcelJS.Workbook();
+  await muchos.xlsx.load(await crearInformePagosMes(
+    Array.from({ length: 40 }, (_, i) => ({ fecha: '01/01/2026', comprobante: String(i), vecino: 'Vecino', monto: 1000 })),
+    '2026', '01'));
+  assert.equal(muchos.getWorksheet('Informe tesorería').getCell('D45').value, 40000);
+  await assert.rejects(() => crearInformePagosMes([], '2026', '13'), /válidos/);
 });
 
 test('exporta cuotas por años consecutivos y conserva detalles parciales y anulados', async () => {

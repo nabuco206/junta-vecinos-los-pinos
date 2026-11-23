@@ -466,6 +466,39 @@ test('cerrar el informe mensual descarta una carga pendiente', async () => {
   assert.equal(runInContext('monthlyPayments', app.context), null);
 });
 
+test('descarga el informe del mes seleccionado solo con pagos vigentes y fechados', async () => {
+  const app = setup();
+  app.context.neighborList = [{ id: 1, nombre: 'Ana' }];
+  app.context.mockRpc = async () => [
+    { id: 1, fecha: '2026-01-03', comprobante: '001', monto: 12000 },
+    { id: 2, fecha: '2026-01-04', comprobante: '2', monto: 1000, anulado_en: '2026-01-05' },
+    { id: 3, fecha: null, comprobante: '3', monto: 2000 },
+    { id: 4, fecha: '2026-02-01', comprobante: '4', monto: 3000 }
+  ];
+  app.context.ExportarVecinos = { crearInformePagosMes: async (...args) => { app.context.informe = args; return new Uint8Array(); } };
+  app.context.URL = { createObjectURL: () => 'blob:test', revokeObjectURL() {} };
+  app.context.Blob = Blob;
+  app.context.setTimeout = () => {};
+  app.document.createElement = () => ({ click() { app.context.descarga = this.download; } });
+  runInContext('session = {}; neighbors = neighborList; rpc = mockRpc', app.context);
+  await runInContext('openMonthlyPayments()', app.context);
+  const form = app.document.querySelector('#monthly-payments-form');
+  form.elements.anio.value = '2026';
+  form.elements.mes.value = '01';
+  form.reportValidity = () => true;
+  runInContext('renderMonthlyPayments()', app.context);
+  assert.equal(app.document.querySelector('#monthly-report-download').disabled, false);
+  await app.document.querySelector('#monthly-report-download').listeners.click();
+  assert.deepEqual(Array.from(app.context.informe[0], row => [row.fecha, row.comprobante, row.vecino, row.monto]),
+    [['03/01/2026', '001', 'Ana', 12000]]);
+  assert.deepEqual(app.context.informe.slice(1), ['2026', '01']);
+  assert.equal(app.context.descarga, 'informe-tesoreria-2026-01.xlsx');
+  assert.equal(app.document.querySelector('#monthly-payments-status').textContent, '1 pago. Total de ingresos: $12.000.');
+  form.elements.mes.value = '';
+  runInContext('renderMonthlyPayments()', app.context);
+  assert.equal(app.document.querySelector('#monthly-report-download').disabled, true);
+});
+
 test('la carga general limita consultas, ignora respuestas antiguas y permite reintentar', async () => {
   const app = setup([]);
   app.context.neighborList = Array.from({ length: 8 }, (_, i) => ({ id: i + 1, nombre: `Vecino ${i + 1}` }));

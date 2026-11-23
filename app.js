@@ -396,6 +396,7 @@ function clearMonthlyPayments() {
   if (dialog.open) dialog.close();
   $('#monthly-payments-status').textContent = '';
   $('#monthly-payments-form').querySelector('button[type="submit"]').disabled = true;
+  $('#monthly-report-download').disabled = true;
 }
 
 function monthlyPaymentRows(year, month) {
@@ -409,8 +410,10 @@ function monthlyPaymentRows(year, month) {
 function renderMonthlyPayments() {
   const form = $('#monthly-payments-form');
   const submit = form.querySelector('button[type="submit"]');
+  const report = $('#monthly-report-download');
   if (!monthlyPayments) {
     submit.disabled = true;
+    report.disabled = true;
     return;
   }
   const year = form.elements.anio.value;
@@ -418,12 +421,14 @@ function renderMonthlyPayments() {
   if (!/^(20\d{2}|2100)$/.test(year) || !/^(0[1-9]|1[0-2])$/.test(month)) {
     $('#monthly-payments-status').textContent = 'Selecciona un año y un mes válidos.';
     submit.disabled = true;
+    report.disabled = true;
     return;
   }
   const rows = monthlyPaymentRows(year, month);
   const total = rows.reduce((sum, item) => sum + Number(item.pago.monto), 0);
   $('#monthly-payments-status').textContent = `${rows.length} ${rows.length === 1 ? 'pago' : 'pagos'}. Total de ingresos: ${money.format(total)}.`;
   submit.disabled = monthlyExporting;
+  report.disabled = monthlyExporting;
 }
 
 async function openMonthlyPayments() {
@@ -450,7 +455,7 @@ async function openMonthlyPayments() {
   }
 }
 
-async function exportMonthlyPayments(form) {
+async function exportMonthlyPayments(form, report = false) {
   if (!session || !monthlyPayments || monthlyExporting || !form.reportValidity()) return;
   const activeSession = session;
   const version = monthlyPaymentsVersion;
@@ -467,12 +472,14 @@ async function exportMonthlyPayments(form) {
   renderMonthlyPayments();
   let downloadError = null;
   try {
-    const buffer = await ExportarVecinos.crearArchivoPagosMes(rows);
+    const buffer = report
+      ? await ExportarVecinos.crearInformePagosMes(rows, year, month)
+      : await ExportarVecinos.crearArchivoPagosMes(rows);
     if (session !== activeSession || version !== monthlyPaymentsVersion) return;
     const url = URL.createObjectURL(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `pagos-${year}-${month}.xlsx`;
+    link.download = `${report ? 'informe-tesoreria' : 'pagos'}-${year}-${month}.xlsx`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 60000);
   } catch (error) {
@@ -1261,6 +1268,8 @@ $('#monthly-payments-form').addEventListener('submit', event => {
   event.preventDefault();
   exportMonthlyPayments(event.currentTarget);
 });
+$('#monthly-report-download').addEventListener('click', () =>
+  exportMonthlyPayments($('#monthly-payments-form'), true));
 $('#monthly-payments-close').addEventListener('click', clearMonthlyPayments);
 $('#monthly-payments-dialog').addEventListener('close', () => {
   if ($('#monthly-payments-dialog').open) return;

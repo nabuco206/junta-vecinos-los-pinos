@@ -166,6 +166,9 @@ a todos.
   la fecha. **Pagos por mes** descarga un Excel de pagos vigentes por fecha de
   pago: cada pago se cuenta una sola vez por su monto completo, sin importar las
   cuotas a las que se aplicó. Excluye pagos anulados y pagos sin fecha.
+  **Descargar informe** genera otro Excel imprimible con encabezado de tesorería,
+  folio, nombre, ingreso y total para el mes seleccionado, con los mismos pagos.
+  No inventa folios anulados ni incorpora pagos sin fecha.
   El monto recaudado suma los importes vigentes aplicados a los meses del año,
   aunque el pago se haya realizado en otro año.
   La vista consulta el historial de cada vecino al abrirse y permite cambiar de

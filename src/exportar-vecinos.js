@@ -51,6 +51,64 @@ export async function crearArchivoPagosMes(filas) {
   return libro.xlsx.writeBuffer();
 }
 
+export async function crearInformePagosMes(filas, anio, mes) {
+  if (!/^(20\d{2}|2100)$/.test(String(anio)) || !/^(0[1-9]|1[0-2])$/.test(String(mes))) {
+    throw new Error('Selecciona un año y un mes válidos.');
+  }
+  const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+    'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+  const libro = new ExcelJS.Workbook();
+  const hoja = libro.addWorksheet('Informe tesorería', {
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, printTitlesRow: '1:4' }
+  });
+  hoja.columns = [{ width: 16 }, { width: 14 }, { width: 40 }, { width: 18 }];
+  hoja.mergeCells('A1:B1');
+  hoja.mergeCells('A2:B2');
+  hoja.mergeCells('C1:D1');
+  hoja.mergeCells('C2:D2');
+  hoja.getCell('A1').value = 'JUNTA DE VECINOS Nº 34';
+  hoja.getCell('A2').value = 'JARDÍN LOS PINOS DE EL QUISCO';
+  hoja.getCell('C1').value = `TESORERÍA ${meses[Number(mes) - 1]} ${anio}`;
+  hoja.getCell('C2').value = 'CUOTAS SOCIOS';
+  for (const address of ['A1', 'A2', 'C1', 'C2']) {
+    const cell = hoja.getCell(address);
+    cell.font = { name: 'Calibri', size: 12, bold: true };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', shrinkToFit: true };
+  }
+  hoja.getRow(4).values = ['FECHA', 'FOLIO', 'NOMBRE SOCIO', 'INGRESO'];
+  const ordenadas = [...filas].sort((a, b) => {
+    const folioA = String(a.comprobante ?? '').trim();
+    const folioB = String(b.comprobante ?? '').trim();
+    if (!folioA || !folioB) return Number(!folioA) - Number(!folioB);
+    return folioA.localeCompare(folioB, 'es', { numeric: true, sensitivity: 'base' });
+  });
+  const cantidad = Math.max(32, ordenadas.length);
+  const borde = { style: 'thin', color: { argb: 'FF000000' } };
+  for (let i = 0; i < cantidad; i++) {
+    const fila = ordenadas[i];
+    if (fila) hoja.getRow(i + 5).values = [fila.fecha.replaceAll('/', '-'), fila.comprobante, fila.vecino, fila.monto];
+  }
+  for (let numero = 4; numero < cantidad + 5; numero++) {
+    const row = hoja.getRow(numero);
+    row.height = numero === 4 ? 25 : 19;
+    for (let columna = 1; columna <= 4; columna++) {
+      const celda = row.getCell(columna);
+      celda.border = { top: borde, bottom: borde, left: borde, right: borde };
+      celda.font = { name: 'Calibri', size: 11, bold: numero === 4 };
+      celda.alignment = { vertical: 'middle', horizontal: columna === 2 ? 'center' : columna === 4 && numero > 4 ? 'right' : 'left', shrinkToFit: true };
+      if (columna === 4 && numero > 4) celda.numFmt = '"$"#,##0';
+    }
+  }
+  const total = hoja.getRow(cantidad + 5);
+  total.getCell(3).value = 'TOTAL';
+  total.getCell(4).value = filas.reduce((sum, fila) => sum + fila.monto, 0);
+  total.getCell(4).numFmt = '"$"#,##0';
+  total.font = { name: 'Calibri', size: 12, bold: true };
+  total.getCell(4).alignment = { horizontal: 'right' };
+  hoja.pageSetup.printArea = `A1:D${total.number}`;
+  return libro.xlsx.writeBuffer();
+}
+
 export async function crearArchivoCuotas(datos, anioActual = new Date().getFullYear()) {
   if (!Array.isArray(datos?.vecinos) || !Array.isArray(datos?.pagos)) {
     throw new Error('La respuesta de cuotas está incompleta.');
