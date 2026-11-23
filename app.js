@@ -16,7 +16,6 @@ let neighborSort = { key: 'nombre', direction: 'asc' };
 let historyVersion = 0;
 let historyReceiptQuery = '';
 let historyYearVersion = 0;
-let historyYearPayments = null;
 let historyOverviewVersion = 0;
 let historyOverviewPayments = null;
 let historyOverviewLoading = false;
@@ -71,11 +70,11 @@ function setAuthenticated(authenticated) {
     $('#history-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
     $('#history-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     historyYearVersion++;
-    historyYearPayments = null;
     $('#history-year-search').value = '';
     $('#history-year-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
-    $('#history-year-select').value = String(new Date().getFullYear());
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
+    $('#history-year-status').classList.toggle('overdue', false);
+    $('#history-year-balance').textContent = '';
     $('#history-year-months').replaceChildren();
     clearHistoryOverview();
     clearReceipts();
@@ -883,68 +882,71 @@ function updateHistoryOptions(preserveSelection = false, prefix = 'history') {
   select.value = matching.some(neighbor => String(neighbor.id) === selected) ? selected : '';
 }
 
-function renderHistoryYear() {
-  const container = $('#history-year-months');
-  container.replaceChildren();
-  if (!historyYearPayments) return;
-  const year = $('#history-year-select').value;
-  let total = 0;
-  let matches = 0;
-  for (const payment of historyYearPayments) {
-    const entries = payment.aplicaciones.filter(item => item.mes.slice(0, 4) === year)
-      .sort((a, b) => a.mes.localeCompare(b.mes));
-    if (!entries.length) continue;
-    const applied = entries.reduce((sum, item) => sum + Number(item.monto), 0);
-    if (!payment.anulado_en) total += applied;
-    matches++;
-    const ranges = [];
-    for (const entry of entries) {
-      const month = Number(entry.mes.slice(5, 7)) - 1;
-      const amount = Number(entry.monto);
-      const previous = ranges.at(-1);
-      if (previous && previous.end + 1 === month && previous.amount === amount) {
-        previous.end = month;
-      } else {
-        ranges.push({ start: month, end: month, amount });
-      }
+function buildIndividualDues(neighbor, fees, payments, now = new Date()) {
+  const feeByYear = new Map(fees.map(fee => [Number(fee.anio), Number(fee.monto)]));
+  const paidByMonth = new Map();
+  for (const payment of payments) {
+    if (payment.anulado_en) continue;
+    for (const application of payment.aplicaciones) {
+      const entry = paidByMonth.get(application.mes) || { pagado: 0, comprobantes: new Set() };
+      entry.pagado += Number(application.monto);
+      if (payment.comprobante) entry.comprobantes.add(payment.comprobante);
+      paidByMonth.set(application.mes, entry);
     }
-    const months = ranges.map(range => {
-      const name = range.start === range.end ? monthNames[range.start] : `${monthNames[range.start]}–${monthNames[range.end]}`;
-      return `${name}: ${money.format(range.amount)}${range.start === range.end ? '' : ' por mes'}`;
-    }).join('; ');
-    const row = document.createElement('tr');
-    const date = payment.fecha ? payment.fecha.split('-').reverse().join('/') : '';
-    cell(row, date).dataset.label = 'Fecha';
-    cell(row, payment.comprobante || '—').dataset.label = 'Comprobante';
-    cell(row, months).dataset.label = 'Meses y monto por mes';
-    cell(row, money.format(applied)).dataset.label = 'Aplicado en el año';
-    const state = cell(row, payment.anulado_en ? `Anulado: ${payment.motivo_anulacion}` : 'Registrado');
-    state.dataset.label = 'Estado';
-    if (payment.anulado_en) state.className = 'history-year-cancelled';
-    container.append(row);
   }
-  const neighbor = neighbors.find(item => String(item.id) === $('#history-year-neighbor').value);
-  $('#history-year-status').textContent = matches
-    ? `Pagos de ${neighbor.nombre} aplicados a ${year}: ${money.format(total)} vigentes.`
-    : `No hay pagos aplicados a ${year} para ${neighbor.nombre}. Un mes sin pagos no implica necesariamente deuda.`;
+  const currentYear = now.getUTCFullYear();
+  const currentMonth = now.getUTCMonth() + 1;
+  const monthNow = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  const startYear = Number(neighbor.inicio.slice(0, 4));
+  const startMonth = Number(neighbor.inicio.slice(5, 7));
+  let configuracionCompleta = true;
+  if (!neighbor.no_paga_cuota) {
+    for (let year = startYear; year <= currentYear; year++) {
+      if (![2019, 2020].includes(year) && !feeByYear.has(year)) configuracionCompleta = false;
+    }
+  }
+  const cuotas = [];
+  let deuda = 0;
+  for (let year = startYear, month = startMonth; year < currentYear || (year === currentYear && month <= currentMonth);) {
+    const mes = `${year}-${String(month).padStart(2, '0')}-01`;
+    const noCobrado = [2019, 2020].includes(year);
+    const monto = neighbor.no_paga_cuota || noCobrado ? 0 : (feeByYear.get(year) ?? null);
+    const paid = paidByMonth.get(mes);
+    const pagado = paid?.pagado ?? 0;
+    const comprobantes = [...(paid?.comprobantes ?? [])].sort();
+    cuotas.push({ mes, monto, no_cobrado: noCobrado, pagado, comprobantes });
+    if (monto !== null && !neighbor.no_paga_cuota && !noCobrado) deuda += Math.max(monto - pagado, 0);
+    if (++month === 13) { month = 1; year++; }
+  }
+  return { vecino: neighbor, mes_actual: monthNow, configuracion_completa: configuracionCompleta, deuda_hasta_hoy: deuda, cuotas };
 }
 
 async function loadHistoryYear() {
   const selected = $('#history-year-neighbor').value;
   const version = ++historyYearVersion;
   const activeSession = session;
-  historyYearPayments = null;
   $('#history-year-months').replaceChildren();
+  $('#history-year-balance').textContent = '';
+  $('#history-year-status').classList.toggle('overdue', false);
   if (!selected || !activeSession) {
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     return;
   }
-  $('#history-year-status').textContent = 'Cargando pagos…';
+  $('#history-year-status').textContent = 'Cargando cuotas…';
   try {
-    const data = await rpc('cuotas_historial_vecino', { p_vecino: Number(selected) });
+    const [payments, data] = await Promise.all([
+      rpc('cuotas_historial_vecino', { p_vecino: Number(selected) }),
+      rpc('cuotas_datos', { p_anio: Number(yearInput.value) })
+    ]);
     if (version !== historyYearVersion || session !== activeSession) return;
-    historyYearPayments = data;
-    renderHistoryYear();
+    const neighbor = data.vecinos.find(item => String(item.id) === selected);
+    if (!neighbor || !Array.isArray(payments) || !Array.isArray(data.aranceles)) {
+      throw new Error('Los datos del vecino o sus cuotas están incompletos.');
+    }
+    const vista = buildIndividualDues(neighbor, data.aranceles, payments);
+    mostrarVistaCuotas(vista, {
+      status: $('#history-year-status'), balance: $('#history-year-balance'), dues: $('#history-year-months')
+    });
   } catch (error) {
     if (version !== historyYearVersion || session !== activeSession) return;
     $('#history-year-status').textContent = error.code === 'PGRST202'
@@ -1246,7 +1248,6 @@ $('#history-year-search').addEventListener('input', () => {
 $('#history-year-neighbor').addEventListener('change', () => {
   loadHistoryYear();
 });
-$('#history-year-select').addEventListener('change', renderHistoryYear);
 $('#history-overview-year').addEventListener('change', renderHistoryOverview);
 $('#history-overview-retry').addEventListener('click', loadHistoryOverview);
 $('#monthly-payments-open').addEventListener('click', openMonthlyPayments);
@@ -1576,13 +1577,9 @@ function changeYear(value) {
 
 yearInput.addEventListener('change', () => changeYear(yearInput.value));
 const today = new Date();
-for (let year = 2100; year >= 2000; year--) {
-  $('#history-year-select').add(new Option(String(year), String(year)));
-}
 for (let year = overviewLastYear; year >= overviewFirstYear; year--) {
   $('#history-overview-year').add(new Option(String(year), String(year)));
 }
-$('#history-year-select').value = String(today.getFullYear());
 $('#history-overview-year').value = defaultOverviewYear();
 yearInput.value = today.getFullYear();
 $('#fee-form').elements.anio.value = today.getFullYear();

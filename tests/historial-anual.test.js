@@ -238,7 +238,7 @@ test('el diálogo informa cuando no hay comprobantes repetidos', async () => {
   assert.equal(app.document.querySelector('#receipts-duplicates-list').children.length, 0);
 });
 
-function setup(payments, year = '2024') {
+function setup() {
   const elements = new Map();
   const document = {
     querySelector(selector) {
@@ -250,15 +250,11 @@ function setup(payments, year = '2024') {
   };
   document.querySelector('#monthly-payments-form').querySelector = () => new Element();
   const context = createContext({ document, Option: Element, setTimeout, clearTimeout });
+  runInContext(readFileSync(new URL('../vista-cuotas.js', import.meta.url), 'utf8'), context);
   runInContext(readFileSync(new URL('../app.js', import.meta.url), 'utf8'), context);
-  context.testPayments = payments;
-  runInContext("neighbors = [{ id: 1, nombre: 'Vecino' }]; historyYearPayments = testPayments", context);
+  runInContext("neighbors = [{ id: 1, nombre: 'Vecino' }]", context);
   document.querySelector('#history-year-neighbor').value = '1';
-  document.querySelector('#history-year-select').value = year;
-  const render = () => runInContext('renderHistoryYear()', context);
-  const rows = () => document.querySelector('#history-year-months').children.map(row => row.children.map(cell => cell.textContent));
-  const status = () => document.querySelector('#history-year-status').textContent;
-  return { context, document, render, rows, status };
+  return { context, document };
 }
 
 test('muestra la cuota del año actual independientemente del año del tablero', () => {
@@ -291,36 +287,79 @@ test('lista todos los valores por año y actualiza la lista cuando cambian', () 
   assert.equal(app.document.querySelector('#fee-list-status').textContent, 'No hay valores de cuota registrados.');
 });
 
-test('agrupa meses consecutivos y suma solo aplicaciones vigentes del año', () => {
-  const fullYear = Array.from({ length: 12 }, (_, i) => ({ mes: `2024-${String(i + 1).padStart(2, '0')}-01`, monto: 1000 }));
-  const app = setup([
-    { fecha: null, comprobante: '10', aplicaciones: [...fullYear, { mes: '2025-01-01', monto: 1000 }] },
-    { fecha: '2024-02-02', comprobante: '10', aplicaciones: [
-      { mes: '2024-01-01', monto: 500 }, { mes: '2024-03-01', monto: 500 },
-      { mes: '2024-04-01', monto: 1000 }, { mes: '2024-05-01', monto: 1000 }
-    ] },
-    { fecha: '2024-03-01', comprobante: '11', anulado_en: '2024-03-02', motivo_anulacion: 'Error', aplicaciones: [
-      { mes: '2024-01-01', monto: 1000 }
-    ] }
-  ]);
-  app.render();
-  assert.deepEqual(app.rows(), [
-    ['', '10', 'Enero–Diciembre: $1.000 por mes', '$12.000', 'Registrado'],
-    ['02/02/2024', '10', 'Enero: $500; Marzo: $500; Abril–Mayo: $1.000 por mes', '$3.000', 'Registrado'],
-    ['01/03/2024', '11', 'Enero: $1.000', '$1.000', 'Anulado: Error']
-  ]);
-  assert.equal(app.status(), 'Pagos de Vecino aplicados a 2024: $15.000 vigentes.');
-  app.document.querySelector('#history-year-select').value = '2025';
-  app.render();
-  assert.deepEqual(app.rows(), [['', '10', 'Enero: $1.000', '$1.000', 'Registrado']]);
-  assert.equal(app.status(), 'Pagos de Vecino aplicados a 2025: $1.000 vigentes.');
+test('la vista individual aplica pagos vigentes, exención pandemia y saldos parciales', () => {
+  const app = setup();
+  app.context.neighbor = { id: 1, nombre: 'Ana', inicio: '2018-12-01', no_paga_cuota: false };
+  app.context.fees = [{ anio: 2018, monto: 1000 }, { anio: 2021, monto: 1000 }];
+  app.context.payments = [
+    { comprobante: '123', aplicaciones: [{ mes: '2018-12-01', monto: 1000 }, { mes: '2021-01-01', monto: 400 }] },
+    { comprobante: '124', anulado_en: '2021-01-01', aplicaciones: [{ mes: '2021-01-01', monto: 600 }] }
+  ];
+  const data = runInContext("buildIndividualDues(neighbor, fees, payments, new Date('2021-02-15T12:00:00Z'))", app.context);
+  assert.equal(data.configuracion_completa, true);
+  assert.equal(data.deuda_hasta_hoy, 1600);
+  assert.equal(data.cuotas.length, 27);
+  assert.equal(data.cuotas[1].no_cobrado, true);
+  assert.equal(data.cuotas[25].pagado, 400);
+  assert.deepEqual(Array.from(data.cuotas[25].comprobantes), ['123']);
+  app.context.vista = data;
+  runInContext("mostrarVistaCuotas(vista, {status: document.querySelector('#history-year-status'), balance: document.querySelector('#history-year-balance'), dues: document.querySelector('#history-year-months')})", app.context);
+  assert.equal(app.document.querySelector('#history-year-status').textContent, 'Estado: Pendiente');
+  const years = app.document.querySelector('#history-year-months').children;
+  assert.deepEqual(years.map(year => year.dataset.year), ['2021', '2020', '2019', '2018']);
+  assert.equal(years[0].children[1].children[0].children[2].textContent, 'Debe $600');
 });
 
-test('muestra un año sin pagos sin confundirlo con deuda', () => {
-  const app = setup([{ fecha: null, comprobante: '1', aplicaciones: [{ mes: '2023-01-01', monto: 1000 }] }]);
-  app.render();
-  assert.deepEqual(app.rows(), []);
-  assert.equal(app.status(), 'No hay pagos aplicados a 2024 para Vecino. Un mes sin pagos no implica necesariamente deuda.');
+test('informa cuotas sin configurar y respeta vecinos exentos', () => {
+  const app = setup();
+  app.context.neighbor = { inicio: '2021-01-01', no_paga_cuota: false };
+  const missing = runInContext("buildIndividualDues(neighbor, [], [], new Date('2021-01-05T00:00:00Z'))", app.context);
+  assert.equal(missing.configuracion_completa, false);
+  assert.equal(missing.cuotas[0].monto, null);
+  app.context.neighbor.no_paga_cuota = true;
+  const exempt = runInContext("buildIndividualDues(neighbor, [], [], new Date('2021-01-05T00:00:00Z'))", app.context);
+  assert.equal(exempt.configuracion_completa, true);
+  assert.equal(exempt.deuda_hasta_hoy, 0);
+  assert.equal(exempt.cuotas[0].monto, 0);
+});
+
+test('la vista individual descarta respuestas obsoletas al cambiar de vecino', async () => {
+  const app = setup();
+  let resolveFirst;
+  app.context.mockRpc = (name, args) => name === 'cuotas_datos'
+    ? Promise.resolve({ vecinos: [{ id: 1, nombre: 'Ana', inicio: '2025-01-01' }, { id: 2, nombre: 'Luis', inicio: '2025-01-01' }], aranceles: [] })
+    : args.p_vecino === 1 ? new Promise(resolve => { resolveFirst = resolve; }) : Promise.resolve([]);
+  runInContext('session = {}; rpc = mockRpc', app.context);
+  const first = runInContext('loadHistoryYear()', app.context);
+  app.document.querySelector('#history-year-neighbor').value = '2';
+  await runInContext('loadHistoryYear()', app.context);
+  const status = app.document.querySelector('#history-year-status').textContent;
+  resolveFirst([]);
+  await first;
+  assert.equal(app.document.querySelector('#history-year-status').textContent, status);
+});
+
+test('carga el historial de un vecino y muestra su estado individual', async () => {
+  const app = setup();
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  app.context.mockRpc = async name => name === 'cuotas_datos'
+    ? { vecinos: [{ id: 1, nombre: 'Ana', inicio: `${year}-${month}-01`, no_paga_cuota: false }], aranceles: [{ anio: year, monto: 1000 }] }
+    : [{ comprobante: '008', aplicaciones: [{ mes: `${year}-${month}-01`, monto: 400 }] }];
+  app.document.querySelector('#year').value = String(year);
+  runInContext('session = {}; rpc = mockRpc', app.context);
+  await runInContext('loadHistoryYear()', app.context);
+  assert.equal(app.document.querySelector('#history-year-status').textContent, 'Estado: Pendiente');
+  assert.match(app.document.querySelector('#history-year-balance').textContent, /\$600/);
+  const card = app.document.querySelector('#history-year-months').children[0].children[1].children[0];
+  assert.equal(card.children[1].textContent, 'N.º 008');
+  assert.equal(card.children[2].textContent, 'Debe $600');
+  app.context.mockRpc = async () => { throw new Error('Conexión perdida'); };
+  runInContext('rpc = mockRpc', app.context);
+  await runInContext('loadHistoryYear()', app.context);
+  assert.match(app.document.querySelector('#history-year-status').textContent, /Conexión perdida/);
+  assert.equal(app.document.querySelector('#history-year-months').children.length, 0);
 });
 
 test('la vista general muestra cada comprobante vigente y deja en blanco las fechas desconocidas', () => {
@@ -520,6 +559,7 @@ test('el portal del vecino deja en blanco las fechas ausentes y conserva las reg
     createElement() { return new Element(); }
   };
   const context = createContext({ document, Option: Element });
+  runInContext(readFileSync(new URL('../vista-cuotas.js', import.meta.url), 'utf8'), context);
   runInContext(readFileSync(new URL('../vecino.js', import.meta.url), 'utf8'), context);
   context.testData = {
     anio_inicio: 2024, anio_actual: 2025, mes_actual: '2025-03-01', vecino: { nombre: 'Vecino' },
