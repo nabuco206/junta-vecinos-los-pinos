@@ -353,7 +353,7 @@ test('carga el historial de un vecino y muestra su estado individual', async () 
   runInContext('session = {}; rpc = mockRpc', app.context);
   await runInContext('loadHistoryYear()', app.context);
   assert.equal(app.document.querySelector('#history-year-enrollment').textContent,
-    `Inscripción (mes de inicio registrado): ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][Number(month) - 1]} ${year}. El día no está registrado.`);
+    `Inscripción : ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][Number(month) - 1]} ${year}`);
   assert.equal(app.document.querySelector('#history-year-status').textContent, 'Estado: Pendiente');
   assert.match(app.document.querySelector('#history-year-balance').textContent, /\$600/);
   const card = app.document.querySelector('#history-year-months').children[0].children[1].children[0];

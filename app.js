@@ -947,7 +947,7 @@ async function loadHistoryYear() {
     }
     const vista = buildIndividualDues(neighbor, data.aranceles, payments);
     $('#history-year-enrollment').textContent =
-      `Inscripción (mes de inicio registrado): ${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}. El día no está registrado.`;
+      `Inscripción : ${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}`;
     mostrarVistaCuotas(vista, {
       status: $('#history-year-status'), balance: $('#history-year-balance'), dues: $('#history-year-months')
     });
