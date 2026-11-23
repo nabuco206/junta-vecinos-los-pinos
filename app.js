@@ -72,6 +72,7 @@ function setAuthenticated(authenticated) {
     historyYearVersion++;
     $('#history-year-search').value = '';
     $('#history-year-neighbor').replaceChildren(new Option('Selecciona un vecino', ''));
+    $('#history-year-enrollment').textContent = '';
     $('#history-year-status').textContent = 'Selecciona un vecino para ver sus pagos.';
     $('#history-year-status').classList.toggle('overdue', false);
     $('#history-year-balance').textContent = '';
@@ -926,6 +927,7 @@ async function loadHistoryYear() {
   const version = ++historyYearVersion;
   const activeSession = session;
   $('#history-year-months').replaceChildren();
+  $('#history-year-enrollment').textContent = '';
   $('#history-year-balance').textContent = '';
   $('#history-year-status').classList.toggle('overdue', false);
   if (!selected || !activeSession) {
@@ -944,6 +946,8 @@ async function loadHistoryYear() {
       throw new Error('Los datos del vecino o sus cuotas están incompletos.');
     }
     const vista = buildIndividualDues(neighbor, data.aranceles, payments);
+    $('#history-year-enrollment').textContent =
+      `Inscripción (mes de inicio registrado): ${monthNames[Number(neighbor.inicio.slice(5, 7)) - 1]} ${neighbor.inicio.slice(0, 4)}. El día no está registrado.`;
     mostrarVistaCuotas(vista, {
       status: $('#history-year-status'), balance: $('#history-year-balance'), dues: $('#history-year-months')
     });

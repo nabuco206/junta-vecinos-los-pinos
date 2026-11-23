@@ -157,7 +157,8 @@ a todos.
   los anulados y encuentra coincidencias parciales sin distinguir mayúsculas.
 - **Historia de pagos** permite seleccionar un vecino y consultar sus cuotas
   desde el ingreso hasta el mes actual con la misma presentación del portal:
-  saldo, comprobantes y estado mensual. Los pagos anulados no se suman.
+  mes de inicio registrado, saldo, comprobantes y estado mensual. El sistema no
+  guarda el día de inscripción. Los pagos anulados no se suman.
 - **Pagos por Año** presenta a todos los vecinos y los doce meses de un
   año, con comprobante y fecha de cada pago vigente aplicado. Los pagos anulados
   se consultan en los otros historiales. Una celda vacía no implica deuda.

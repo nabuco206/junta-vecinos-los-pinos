@@ -327,16 +327,18 @@ test('la vista individual descarta respuestas obsoletas al cambiar de vecino', a
   const app = setup();
   let resolveFirst;
   app.context.mockRpc = (name, args) => name === 'cuotas_datos'
-    ? Promise.resolve({ vecinos: [{ id: 1, nombre: 'Ana', inicio: '2025-01-01' }, { id: 2, nombre: 'Luis', inicio: '2025-01-01' }], aranceles: [] })
+    ? Promise.resolve({ vecinos: [{ id: 1, nombre: 'Ana', inicio: '2024-01-01' }, { id: 2, nombre: 'Luis', inicio: '2025-02-01' }], aranceles: [] })
     : args.p_vecino === 1 ? new Promise(resolve => { resolveFirst = resolve; }) : Promise.resolve([]);
   runInContext('session = {}; rpc = mockRpc', app.context);
   const first = runInContext('loadHistoryYear()', app.context);
   app.document.querySelector('#history-year-neighbor').value = '2';
   await runInContext('loadHistoryYear()', app.context);
   const status = app.document.querySelector('#history-year-status').textContent;
+  assert.match(app.document.querySelector('#history-year-enrollment').textContent, /Febrero 2025/);
   resolveFirst([]);
   await first;
   assert.equal(app.document.querySelector('#history-year-status').textContent, status);
+  assert.match(app.document.querySelector('#history-year-enrollment').textContent, /Febrero 2025/);
 });
 
 test('carga el historial de un vecino y muestra su estado individual', async () => {
@@ -350,6 +352,8 @@ test('carga el historial de un vecino y muestra su estado individual', async () 
   app.document.querySelector('#year').value = String(year);
   runInContext('session = {}; rpc = mockRpc', app.context);
   await runInContext('loadHistoryYear()', app.context);
+  assert.equal(app.document.querySelector('#history-year-enrollment').textContent,
+    `Inscripción (mes de inicio registrado): ${['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][Number(month) - 1]} ${year}. El día no está registrado.`);
   assert.equal(app.document.querySelector('#history-year-status').textContent, 'Estado: Pendiente');
   assert.match(app.document.querySelector('#history-year-balance').textContent, /\$600/);
   const card = app.document.querySelector('#history-year-months').children[0].children[1].children[0];
@@ -359,6 +363,7 @@ test('carga el historial de un vecino y muestra su estado individual', async () 
   runInContext('rpc = mockRpc', app.context);
   await runInContext('loadHistoryYear()', app.context);
   assert.match(app.document.querySelector('#history-year-status').textContent, /Conexión perdida/);
+  assert.equal(app.document.querySelector('#history-year-enrollment').textContent, '');
   assert.equal(app.document.querySelector('#history-year-months').children.length, 0);
 });
 
