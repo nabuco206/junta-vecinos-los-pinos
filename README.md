@@ -108,7 +108,10 @@ a todos.
   pagos vigentes del vecino desde su mes de inicio, en orden numérico de
   comprobante. Los pagos sin comprobante se ubican por fecha; sin fecha se
   dejan al final. Ante comprobantes no numéricos, repetidos o fechas ambiguas,
-  se solicita revisar los datos. La vista previa muestra el antes y después de
+  se solicita revisar los datos. Al abrir la modificación y al cambiar la fecha
+  o el monto se calcula la propuesta automáticamente. Si no alcanza el último
+  año configurado, se informa el error y hay que configurar las cuotas necesarias
+  o ajustar manualmente. La vista previa muestra el antes y después de
   cada pago y se verifica nuevamente al guardar. Los pagos de 2019 y 2020 se
   reasignan a meses cobrables al redistribuirlos. Se conserva el ajuste manual
   del pago seleccionado.

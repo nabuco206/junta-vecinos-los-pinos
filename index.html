@@ -129,9 +129,8 @@
             <label>Fecha de pago<input name="fecha" type="date"></label>
             <label>Monto total del pago<input name="monto" type="number" min="1" max="1000000000" step="1" required></label>
             <h3>Cuotas a las que se aplica</h3>
-            <p>Al cambiar el monto se redistribuyen los pagos vigentes del vecino desde su mes de inicio, por número de comprobante. Se omiten los años sin cobro. Revisa todos los cambios antes de guardar; también puedes ajustar solo este pago manualmente.</p>
+            <p>Al abrir el pago y al cambiar la fecha o el monto se calcula una propuesta para todos los pagos vigentes del vecino, desde su mes de inicio y por número de comprobante. Se omiten los años sin cobro. Revisa todos los cambios antes de guardar; también puedes ajustar solo este pago manualmente.</p>
             <p id="payment-edit-auto-status" aria-live="polite"></p>
-            <button type="button" id="payment-edit-recalculate" class="outline">Recalcular meses</button>
             <div id="payment-edit-redistribution" aria-live="polite"></div>
             <div id="payment-edit-months"></div>
             <button type="button" id="payment-edit-add-month" class="outline">Agregar mes</button>

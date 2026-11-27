@@ -47,7 +47,7 @@ test('el recálculo muestra la propuesta y descarta respuestas anteriores', asyn
   await runInContext('calculatePaymentEdit(editingPayment, 500, 2)', app.context);
   resolveFirst([{ id: 10, monto: 3000, antes: { aplicaciones: [] }, aplicaciones: [{ mes: '2021-01-01', monto: 3000 }] }]);
   await first;
-  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Pagos redistribuidos/);
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Propuesta calculada/);
   assert.equal(app.document.querySelector('#payment-edit-months').children[0].children[1].children[0].value, '500');
   assert.equal(runInContext('paymentAutomatic[0].monto', app.context), 500);
 });
@@ -62,6 +62,94 @@ test('el error de recálculo bloquea la propuesta hasta un ajuste manual', async
   assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Falta configurar/);
   runInContext('useManualPaymentEdit()', app.context);
   assert.equal(runInContext('paymentCalculationFailed', app.context), false);
+});
+
+test('al abrir y modificar un pago calcula la propuesta incluso si se conserva el monto', async () => {
+  const app = setup();
+  const form = app.document.querySelector('#payment-edit-form');
+  form.reset = () => {};
+  form.elements.fecha = { value: '', focus() {} };
+  form.elements.monto = { value: '' };
+  app.context.payment = { id: 10, comprobante: '287', fecha: '2018-05-20', monto: 20000,
+    aplicaciones: [{ mes: '2018-03-01', monto: 20000 }] };
+  app.context.calls = [];
+  app.context.setTimeout = callback => { app.context.scheduled = callback; return 1; };
+  app.context.clearTimeout = () => {};
+  app.context.mockRpc = async (name, args) => {
+    app.context.calls.push({ name, args });
+    return [{ id: 10, comprobante: '287', fecha: args.p_fecha, monto: args.p_monto,
+      antes: args.p_original, aplicaciones: [{ mes: '2018-03-01', monto: 1000 }, { mes: '2018-04-01', monto: args.p_monto - 1000 }] }];
+  };
+  runInContext('session = {}; rpc = mockRpc; startPaymentEdit(payment, { nombre: "Vecino" })', app.context);
+  assert.equal(runInContext('paymentCalculationPending', app.context), true);
+  await app.context.scheduled();
+  assert.equal(app.context.calls[0].name, 'cuotas_previsualizar_redistribucion');
+  assert.equal(app.context.calls[0].args.p_monto, 20000);
+  assert.equal(app.document.querySelector('#payment-edit-months').children.length, 2);
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /Propuesta calculada/);
+  form.elements.monto.value = '25000';
+  form.listeners.input({ target: { name: 'monto' } });
+  form.elements.monto.value = '20000';
+  form.listeners.input({ target: { name: 'monto' } });
+  await app.context.scheduled();
+  assert.equal(app.context.calls.at(-1).args.p_monto, 20000);
+  form.elements.fecha.value = '2018-06-01';
+  form.listeners.input({ target: { name: 'fecha' } });
+  await app.context.scheduled();
+  assert.equal(app.context.calls.at(-1).args.p_fecha, '2018-06-01');
+});
+
+test('no guarda si el recálculo automático está pendiente o falla', async () => {
+  const app = setup();
+  const form = app.document.querySelector('#payment-edit-form');
+  form.reset = () => {};
+  form.elements.fecha = { value: '', focus() {} };
+  form.elements.monto = { value: '' };
+  app.context.payment = { id: 10, comprobante: '287', fecha: null, monto: 20000, aplicaciones: [] };
+  app.context.setTimeout = callback => { app.context.scheduled = callback; return 1; };
+  app.context.clearTimeout = () => {};
+  app.context.mockRpc = async () => { throw new Error('El monto supera las cuotas disponibles'); };
+  app.context.confirm = () => { throw new Error('No debe solicitar confirmación'); };
+  runInContext('session = {}; rpc = mockRpc; startPaymentEdit(payment, { nombre: "Vecino" })', app.context);
+  form.listeners.submit({ preventDefault() {}, currentTarget: form });
+  assert.match(app.document.querySelector('#message').textContent, /Espera/);
+  await app.context.scheduled();
+  assert.match(app.document.querySelector('#payment-edit-auto-status').textContent, /supera las cuotas disponibles/);
+  form.listeners.submit({ preventDefault() {}, currentTarget: form });
+  assert.match(app.document.querySelector('#message').textContent, /Corrige el error/);
+});
+
+test('guarda la distribución automática revisada, no solo el mes original', async () => {
+  const app = setup();
+  const form = app.document.querySelector('#payment-edit-form');
+  form.reset = () => {};
+  form.elements.fecha = { value: '', focus() {} };
+  form.elements.monto = { value: '' };
+  app.context.payment = { id: 10, comprobante: '287', fecha: null, monto: 2000,
+    aplicaciones: [{ mes: '2018-03-01', monto: 2000 }] };
+  app.context.setTimeout = callback => { app.context.scheduled = callback; return 1; };
+  app.context.clearTimeout = () => {};
+  app.context.confirm = () => true;
+  app.context.mockRpc = async (name, args) => {
+    if (name === 'cuotas_previsualizar_redistribucion') return [{
+      id: 10, comprobante: '287', fecha: null, monto: 2000, antes: args.p_original,
+      aplicaciones: [{ mes: '2018-03-01', monto: 1000 }, { mes: '2018-04-01', monto: 1000 }]
+    }];
+    app.context.saved = { name, args };
+  };
+  app.document.querySelectorAll = selector => selector === '#payment-edit-months .payment-edit-month'
+    ? app.document.querySelector('#payment-edit-months').children.map(row => ({
+      querySelector: query => row.children[query.includes('mes') ? 0 : 1].children[0]
+    })) : [];
+  app.context.mockBusy = (_form, action) => { app.context.savePromise = action(); };
+  app.context.mockUpdate = async () => {};
+  runInContext('session = {}; rpc = mockRpc; withBusy = mockBusy; updateAfterSave = mockUpdate; startPaymentEdit(payment, { nombre: "Vecino" })', app.context);
+  await app.context.scheduled();
+  form.listeners.submit({ preventDefault() {}, currentTarget: form });
+  await app.context.savePromise;
+  assert.equal(app.context.saved.name, 'cuotas_guardar_redistribucion');
+  assert.deepEqual(Array.from(app.context.saved.args.p_distribucion[0].aplicaciones, a => [a.mes, a.monto]),
+    [['2018-03-01', 1000], ['2018-04-01', 1000]]);
 });
 
 test('ordena vecinos alfabéticamente y números de socio en orden natural', () => {

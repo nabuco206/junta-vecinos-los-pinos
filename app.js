@@ -561,7 +561,7 @@ async function calculatePaymentEdit(selected, amount, version) {
       entry.append(label, before, after);
       preview.append(entry);
     }
-    $('#payment-edit-auto-status').textContent = 'Pagos redistribuidos. Revisa todos los cambios antes de guardar.';
+    $('#payment-edit-auto-status').textContent = 'Propuesta calculada. Revisa todos los cambios antes de guardar.';
   } catch (error) {
     if (version !== paymentCalculationVersion || session !== activeSession || editingPayment !== selected) return;
     paymentCalculationPending = false;
@@ -572,7 +572,7 @@ async function calculatePaymentEdit(selected, amount, version) {
   }
 }
 
-function schedulePaymentCalculation(force = false) {
+function schedulePaymentCalculation() {
   if (!editingPayment) return;
   const form = $('#payment-edit-form');
   const amount = Number(form.elements.monto.value);
@@ -585,13 +585,6 @@ function schedulePaymentCalculation(force = false) {
   paymentCalculationFailed = false;
   if (!Number.isInteger(amount) || amount < 1 || amount > 1000000000) {
     $('#payment-edit-auto-status').textContent = 'Ingresa un monto válido para recalcular los meses.';
-    return;
-  }
-  if (amount === Number(selected.payment.monto) && !force) {
-    $('#payment-edit-months').replaceChildren();
-    for (const application of selected.payment.aplicaciones) addPaymentEditMonth(application);
-    updatePaymentEditSum();
-    $('#payment-edit-auto-status').textContent = '';
     return;
   }
   paymentCalculationPending = true;
@@ -653,6 +646,7 @@ function startPaymentEdit(payment, neighbor) {
   updatePaymentEditSum();
   form.hidden = false;
   form.elements.fecha.focus();
+  schedulePaymentCalculation();
 }
 
 async function searchPaymentEdit() {
@@ -1506,12 +1500,8 @@ $('#payment-edit-search-form').addEventListener('submit', event => {
   searchPaymentEdit();
 });
 $('#payment-edit-add-month').addEventListener('click', () => { useManualPaymentEdit(); addPaymentEditMonth(); });
-$('#payment-edit-recalculate').addEventListener('click', () => schedulePaymentCalculation(true));
 $('#payment-edit-form').addEventListener('input', event => {
-  if (event.target.name === 'monto') schedulePaymentCalculation();
-  if (event.target.name === 'fecha' && (paymentAutomatic || paymentCalculationPending || paymentCalculationFailed)) {
-    schedulePaymentCalculation(true);
-  }
+  if (event.target.name === 'monto' || event.target.name === 'fecha') schedulePaymentCalculation();
 });
 $('#payment-edit-cancel').addEventListener('click', resetPaymentEdit);
 $('#payment-edit-form').addEventListener('submit', event => {
